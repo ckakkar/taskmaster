@@ -1,32 +1,34 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Structure and boundaries
 
-The `taskmaster/` directory currently has no source files, dependency manifests, tests, or Git metadata. Establish the structure alongside the first implementation:
+- `Sources/CompanionCore/`: deterministic behavior, preferences, games, physics and scheduling. **Never import AppKit, SwiftUI, SpriteKit or other UI code here.**
+- `Sources/Taskmaster/`: native macOS application, transparent overlay, rendering, customization and image library.
+- `Sources/Taskmaster/Resources/`: character images and artwork metadata.
+- `Tests/CompanionCoreTests/`: Swift Testing behavior and regression tests.
+- `Resources/`, `scripts/`: app metadata, icon generation and local packaging.
+- `docs/`: architecture, art provenance, screenshots and handoff notes.
 
-- `src/`: application code, grouped by feature or responsibility.
-- `tests/`: automated tests, mirroring source modules where practical.
-- `assets/`: static resources, if needed.
-- `docs/`: setup instructions and architectural decisions.
+## Build and verification
 
-These directories are proposed conventions; create them only when they contain useful files.
+Run from the repository root on macOS 14+ with Swift 6+:
 
-## Build, Test, and Development Commands
+```sh
+make check # tests, native compilation and character resource self-check
+make lint  # check Swift formatting
+make run   # build and open build/Taskmaster.app
+make app   # release app bundle
+make dmg   # drag-and-drop installer
+```
 
-No installation, development, build, or test commands are configured yet. When introducing a toolchain, document exact commands in `README.md` for dependency installation, local development, production builds, tests, and linting. Ensure contributors can run them from the repository root. Commit the relevant dependency manifest and lockfile, and exclude generated outputs and installed dependencies through `.gitignore`.
+`--self-check` validates character textures and landmarks without starting the companion. Use `TASKMASTER_STATE_DIR="$PWD/.local" .build/debug/Taskmaster` for isolated development state. Never commit this directory or personal preferences/images.
 
-## Coding Style & Naming Conventions
+## Style and tests
 
-No language, indentation standard, formatter, or linter has been selected. Follow the chosen language's established conventions and configure formatting and linting with the initial implementation. Use descriptive names, keep modules focused, and apply consistent indentation within each file. Document any naming rules that automated tools cannot enforce.
+Use Swift naming conventions, descriptive feature names and the checked-in swift-format configuration. Keep simulation independent of wall-clock APIs: pass time and input explicitly. Group feature-specific engine behavior in extensions. Run `make format` after Swift edits.
 
-## Testing Guidelines
+Tests use `@Test` and describe observable behavior. Add regression coverage for bug fixes, including cancellation, legacy preferences and malformed input. Verify visible changes in the running Mac app; distinguish native checks from simulation tests in the handoff.
 
-No testing framework or coverage threshold exists. Introduce a suitable framework with the first application code and document its invocation. Follow the framework's discovery conventions, such as `test_<module>.py` or `<module>.test.ts`, depending on the stack. Test observable behavior, including failure cases, and add regression tests when fixing bugs.
+## Commits and pull requests
 
-## Commit & Pull Request Guidelines
-
-There is no Git history from which to infer commit conventions. Use short, imperative commit subjects, such as `Add task creation endpoint`, and keep commits focused. Pull requests should explain the purpose, summarize changes, link relevant issues, and report validation commands and results. Include screenshots for visible interface changes and identify any setup or migration steps.
-
-## Security & Configuration
-
-Keep credentials and local configuration out of version control. Document required configuration with placeholder values in an example file, such as `.env.example`, and ignore local overrides.
+Use short, imperative subjects, for example `Fix focus cancellation`. Keep commits focused. PRs should explain behavior, link issues, include screenshots for visual changes, and report exact validation commands and limitations. Keep generated builds, caches, credentials and user state out of Git.

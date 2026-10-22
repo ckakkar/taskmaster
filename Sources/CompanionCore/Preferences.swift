@@ -109,7 +109,8 @@ public struct Preferences: Codable, Equatable, Sendable {
         memeInterval = try values.decodeIfPresent(Double.self, forKey: .memeInterval) ?? memeInterval
         memeStaySeconds = try values.decodeIfPresent(Double.self, forKey: .memeStaySeconds) ?? memeStaySeconds
         focusMinutes = try values.decodeIfPresent(Int.self, forKey: .focusMinutes) ?? focusMinutes
-        completedFocusSessions = try values.decodeIfPresent(Int.self, forKey: .completedFocusSessions) ?? completedFocusSessions
+        completedFocusSessions =
+            try values.decodeIfPresent(Int.self, forKey: .completedFocusSessions) ?? completedFocusSessions
         coat = (try? values.decode(CoatStyle.self, forKey: .coat)) ?? coat
         accessory = (try? values.decode(AccessoryStyle.self, forKey: .accessory)) ?? accessory
         accessoryColor = (try? values.decode(AccessoryColor.self, forKey: .accessoryColor)) ?? accessoryColor

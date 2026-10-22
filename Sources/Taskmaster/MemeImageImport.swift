@@ -13,17 +13,23 @@ enum MemeImageImport {
     static func copy(_ url: URL, into directory: URL) throws -> MemeItem {
         try validateSize(try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0)
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceThumbnailMaxPixelSize: 1600,
-                kCGImageSourceShouldCacheImmediately: true,
-              ] as CFDictionary) else { throw MemeLibrary.ImportError.notImage }
+            let image = CGImageSourceCreateThumbnailAtIndex(
+                source, 0,
+                [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceCreateThumbnailWithTransform: true,
+                    kCGImageSourceThumbnailMaxPixelSize: 1600,
+                    kCGImageSourceShouldCacheImmediately: true,
+                ] as CFDictionary)
+        else { throw MemeLibrary.ImportError.notImage }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let id = UUID().uuidString
         let fileName = id + ".png"
         let destination = directory.appendingPathComponent(fileName)
-        guard let writer = CGImageDestinationCreateWithURL(destination as CFURL, UTType.png.identifier as CFString, 1, nil) else {
+        guard
+            let writer = CGImageDestinationCreateWithURL(
+                destination as CFURL, UTType.png.identifier as CFString, 1, nil)
+        else {
             throw MemeLibrary.ImportError.cannotSave
         }
         CGImageDestinationAddImage(writer, image, nil)
@@ -48,14 +54,21 @@ enum MemeImageImport {
         FileManager.default.createFile(atPath: temporary.path, contents: nil)
         let writer = try FileHandle(forWritingTo: temporary)
         var succeeded = false
-        defer { try? writer.close(); if !succeeded { try? FileManager.default.removeItem(at: temporary) } }
-        var buffer = Data(); buffer.reserveCapacity(65_536)
+        defer {
+            try? writer.close()
+            if !succeeded { try? FileManager.default.removeItem(at: temporary) }
+        }
+        var buffer = Data()
+        buffer.reserveCapacity(65_536)
         var count = 0
         for try await byte in stream {
             count += 1
             try validateSize(count)
             buffer.append(byte)
-            if buffer.count == 65_536 { try writer.write(contentsOf: buffer); buffer.removeAll(keepingCapacity: true) }
+            if buffer.count == 65_536 {
+                try writer.write(contentsOf: buffer)
+                buffer.removeAll(keepingCapacity: true)
+            }
         }
         if !buffer.isEmpty { try writer.write(contentsOf: buffer) }
         succeeded = true

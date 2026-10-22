@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import ImageIO
 import Testing
+
 @testable import Taskmaster
 
 private func temporaryFolder() throws -> URL {
@@ -11,8 +12,11 @@ private func temporaryFolder() throws -> URL {
 }
 
 private func imageFixture(in directory: URL) throws -> URL {
-    let context = try #require(CGContext(data: nil, width: 2048, height: 2048, bitsPerComponent: 8,
-        bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+    let context = try #require(
+        CGContext(
+            data: nil, width: 2048, height: 2048, bitsPerComponent: 8,
+            bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
     context.setFillColor(CGColor(red: 0.3, green: 0.6, blue: 0.4, alpha: 1))
     context.fill(CGRect(x: 0, y: 0, width: 2048, height: 2048))
     let image = try #require(context.makeImage())
@@ -24,7 +28,8 @@ private func imageFixture(in directory: URL) throws -> URL {
 }
 
 @Test @MainActor func corruptMemeIndexRecoversOwnedImagesAndKeepsTheDamagedIndex() async throws {
-    let root = try temporaryFolder(); defer { try? FileManager.default.removeItem(at: root) }
+    let root = try temporaryFolder()
+    defer { try? FileManager.default.removeItem(at: root) }
     let fixture = try imageFixture(in: root)
     let library = MemeLibrary(directory: root)
     let item = try await library.importFile(fixture)
@@ -33,7 +38,10 @@ private func imageFixture(in directory: URL) throws -> URL {
     try Data("damaged json".utf8).write(to: index)
     let recovered = MemeLibrary(directory: root)
     #expect(recovered.items.contains { $0.id == item.id && $0.fileName == item.fileName })
-    #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path).contains { $0.hasPrefix("library-corrupt-") })
+    #expect(
+        try FileManager.default.contentsOfDirectory(atPath: directory.path).contains {
+            $0.hasPrefix("library-corrupt-")
+        })
     recovered.setEnabled(item.id, false)
     let reopened = MemeLibrary(directory: root)
     #expect(reopened.items.first { $0.id == item.id }?.enabled == false)
@@ -41,7 +49,8 @@ private func imageFixture(in directory: URL) throws -> URL {
 }
 
 @Test @MainActor func imageImportYieldsTheMainActorAndNormalizesACopy() async throws {
-    let root = try temporaryFolder(); defer { try? FileManager.default.removeItem(at: root) }
+    let root = try temporaryFolder()
+    defer { try? FileManager.default.removeItem(at: root) }
     let fixture = try imageFixture(in: root)
     let original = try Data(contentsOf: fixture)
     let library = MemeLibrary(directory: root)
@@ -58,7 +67,8 @@ private func imageFixture(in directory: URL) throws -> URL {
 }
 
 @Test @MainActor func oversizedAndInvalidImagesDoNotChangeTheStash() async throws {
-    let root = try temporaryFolder(); defer { try? FileManager.default.removeItem(at: root) }
+    let root = try temporaryFolder()
+    defer { try? FileManager.default.removeItem(at: root) }
     let library = MemeLibrary(directory: root)
     let url = root.appendingPathComponent("invalid.png")
     try Data("not an image".utf8).write(to: url)
@@ -74,7 +84,8 @@ private final class ImageDownloadProtocol: URLProtocol, @unchecked Sendable {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         let declared = request.url!.lastPathComponent == "declared"
-        let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1",
+        let response = HTTPURLResponse(
+            url: request.url!, statusCode: 200, httpVersion: "HTTP/1.1",
             headerFields: declared ? ["Content-Length": "25000001"] : [:])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         if !declared {
@@ -93,10 +104,14 @@ private final class ImageDownloadProtocol: URLProtocol, @unchecked Sendable {
     defer { session.invalidateAndCancel() }
     for path in ["declared", "streamed"] {
         do {
-            let result = try await MemeImageImport.download(URL(string: "https://test.invalid/\(path)")!, session: session)
+            let result = try await MemeImageImport.download(
+                URL(string: "https://test.invalid/\(path)")!, session: session)
             try? FileManager.default.removeItem(at: result)
             Issue.record("Accepted an oversized image")
-        } catch MemeLibrary.ImportError.tooLarge { /* expected */ }
-        catch { Issue.record("Unexpected error: \(error)") }
+        } catch MemeLibrary.ImportError.tooLarge {
+            // Expected: reject both oversized response types.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
     }
 }

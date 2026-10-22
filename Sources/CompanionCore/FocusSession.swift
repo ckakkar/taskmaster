@@ -10,7 +10,9 @@ public struct FocusSession: Sendable {
         deadline = now + duration
     }
     public func remaining(at now: Double) -> Double { max(0, (deadline ?? now) - now) }
-    public func progress(at now: Double) -> Double { isActive ? (1 - remaining(at: now) / duration).clamped(to: 0...1) : 0 }
+    public func progress(at now: Double) -> Double {
+        isActive ? (1 - remaining(at: now) / duration).clamped(to: 0...1) : 0
+    }
     public mutating func cancel() { deadline = nil }
     public mutating func update(now: Double) -> Bool {
         guard let deadline, now >= deadline else { return false }

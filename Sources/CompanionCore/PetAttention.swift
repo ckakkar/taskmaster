@@ -29,10 +29,13 @@ public struct PetAttention: Sendable {
         let dt = min(0.1, seconds)
         time += dt
         isWatching = target != nil && !asleep
-        let destination = asleep ? .zero : Point(
-            x: (target?.x ?? 0).clamped(to: -1...1),
-            y: (target?.y ?? 0).clamped(to: -1...1)
-        )
+        let destination =
+            asleep
+            ? .zero
+            : Point(
+                x: (target?.x ?? 0).clamped(to: -1...1),
+                y: (target?.y ?? 0).clamped(to: -1...1)
+            )
         // Fast enough to acknowledge a person, soft enough to avoid a mechanical snap.
         let follow = 1 - exp(-dt * (isWatching ? 12 : 3.5))
         gaze.x += (destination.x - gaze.x) * follow

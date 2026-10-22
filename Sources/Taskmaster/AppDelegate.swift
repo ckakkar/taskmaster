@@ -1,6 +1,6 @@
 import AppKit
-import SwiftUI
 import CompanionCore
+import SwiftUI
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuDelegate {
@@ -16,12 +16,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             self.model = model
             model.openRoom = { [weak self] in self?.showRoom() }
             model.openCustomization = { [weak self] in self?.showCustomization() }
-            model.closeCustomization = { [weak self] in self?.model?.flushPreferences(); self?.customization?.close() }
+            model.closeCustomization = { [weak self] in
+                self?.model?.flushPreferences()
+                self?.customization?.close()
+            }
             model.desktop.contextMenu = { [weak self] in self?.makeMenu() ?? NSMenu() }
             installApplicationMenu()
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
             if let button = item.button {
-                button.image = NSImage(systemSymbolName: "pawprint.fill", accessibilityDescription: "Taskmaster companion controls")
+                button.image = NSImage(
+                    systemSymbolName: "pawprint.fill", accessibilityDescription: "Taskmaster companion controls")
                 button.toolTip = "Taskmaster · a little company"
             }
             item.menu = makeMenu()
@@ -38,7 +42,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         }
     }
 
-    func applicationWillTerminate(_ notification: Notification) { model?.flushPreferences(); model?.desktop.stop() }
+    func applicationWillTerminate(_ notification: Notification) {
+        model?.flushPreferences()
+        model?.desktop.stop()
+    }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
@@ -84,8 +91,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     @objc private func showCustomization() {
         guard let model else { return }
         if customization == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 860, height: 730),
-                                  styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 860, height: 730),
+                styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
             window.title = "Make \(model.preferences.name) yours"
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
@@ -103,13 +111,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private func makeMenu() -> NSMenu {
         let menu = NSMenu()
         guard let model else { return menu }
-        let heading = NSMenuItem(title: "\(model.preferences.sanitized().name) · \(model.isPaused ? "Paused" : model.preferences.personality.title)", action: nil, keyEquivalent: "")
+        let heading = NSMenuItem(
+            title:
+                "\(model.preferences.sanitized().name) · \(model.isPaused ? "Paused" : model.preferences.personality.title)",
+            action: nil, keyEquivalent: "")
         heading.isEnabled = false
         menu.addItem(heading)
         add("Open companion room…", action: #selector(showRoom), to: menu, symbol: "house")
         add("Customize companion…", action: #selector(customizeVoice), to: menu, symbol: "slider.horizontal.3")
-        add(model.focusActive ? "End quiet focus" : "Focus together · \(model.preferences.focusMinutes) min", action: #selector(toggleFocus), to: menu, symbol: "leaf")
-        add(model.deliveryPhase == nil ? "Bring me a meme" : "Put the meme away", action: #selector(deliverMeme), to: menu, symbol: "photo.on.rectangle")
+        add(
+            model.focusActive ? "End quiet focus" : "Focus together · \(model.preferences.focusMinutes) min",
+            action: #selector(toggleFocus), to: menu, symbol: "leaf")
+        add(
+            model.deliveryPhase == nil ? "Bring me a meme" : "Put the meme away", action: #selector(deliverMeme),
+            to: menu, symbol: "photo.on.rectangle")
         menu.addItem(.separator())
         let mood = NSMenuItem(title: "Personality", action: nil, keyEquivalent: "")
         let moods = NSMenu()
@@ -123,21 +138,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         }
         mood.submenu = moods
         menu.addItem(mood)
-        add(model.state == .highFive ? "Return the high five" : "Pet \(model.preferences.sanitized().name)", action: #selector(pet), to: menu, symbol: "heart")
+        add(
+            model.state == .highFive ? "Return the high five" : "Pet \(model.preferences.sanitized().name)",
+            action: #selector(pet), to: menu, symbol: "heart")
         add("Give a treat", action: #selector(treat), to: menu, symbol: "carrot")
         add("Play with a ball", action: #selector(play), to: menu, symbol: "tennisball")
-        add(model.state == .sleeping ? "Wake up gently" : "Time for a nap", action: #selector(nap), to: menu, symbol: "moon.zzz")
+        add(
+            model.state == .sleeping ? "Wake up gently" : "Time for a nap", action: #selector(nap), to: menu,
+            symbol: "moon.zzz")
         add("A little surprise", action: #selector(surprise), to: menu, symbol: "sparkles")
         add("A tiny high five", action: #selector(highFive), to: menu, symbol: "hand.raised.fill")
-        add(model.isFollowingCursor ? "Stop following the cursor" : "Follow my cursor for a minute", action: #selector(follow), to: menu, symbol: "cursorarrow.motionlines")
+        add(
+            model.isFollowingCursor ? "Stop following the cursor" : "Follow my cursor for a minute",
+            action: #selector(follow), to: menu, symbol: "cursorarrow.motionlines")
         add("Find a hidden snack", action: #selector(findTreat), to: menu, symbol: "sparkle.magnifyingglass")
         add("Come to this screen", action: #selector(comeHere), to: menu, symbol: "arrow.down.to.line")
         add("Have a stretch", action: #selector(stretch), to: menu, symbol: "figure.flexibility")
         add("Muddy zoomies", action: #selector(zoomies), to: menu, symbol: "hare")
         add("Wipe pawprints", action: #selector(wipe), to: menu, symbol: "sparkles")
         menu.addItem(.separator())
-        add(model.isPaused ? "Let’s wander" : "Settle down", action: #selector(pause), to: menu, symbol: model.isPaused ? "play" : "pause")
-        add(model.isVisible ? "Tuck away" : "Bring back", action: #selector(toggleVisible), to: menu, symbol: model.isVisible ? "eye.slash" : "eye")
+        add(
+            model.isPaused ? "Let’s wander" : "Settle down", action: #selector(pause), to: menu,
+            symbol: model.isPaused ? "play" : "pause")
+        add(
+            model.isVisible ? "Tuck away" : "Bring back", action: #selector(toggleVisible), to: menu,
+            symbol: model.isVisible ? "eye.slash" : "eye")
         menu.addItem(.separator())
         add("Quit Taskmaster", action: #selector(quit), to: menu, key: "q")
         return menu
@@ -175,8 +200,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     @objc private func selectMood(_ item: NSMenuItem) { model?.select(Personality.allCases[item.tag]) }
     @objc private func customizeVoice() { model?.customize(.look) }
-    @objc private func toggleFocus() { if model?.focusActive == true { model?.stopFocus() } else { model?.startFocus() } }
-    @objc private func deliverMeme() { if model?.deliveryPhase == nil { model?.bringMeme() } else { model?.putMemeAway() } }
+    @objc private func toggleFocus() {
+        if model?.focusActive == true { model?.stopFocus() } else { model?.startFocus() }
+    }
+    @objc private func deliverMeme() {
+        if model?.deliveryPhase == nil { model?.bringMeme() } else { model?.putMemeAway() }
+    }
     @objc private func treat() { model?.perform(.treat) }
     @objc private func pet() { model?.perform(.pet) }
     @objc private func play() { model?.perform(.play) }

@@ -6,7 +6,9 @@ public struct CompanionSchedule: Sendable {
         public var paused: Bool
         public var readyForDelivery: Bool
         public init(visible: Bool, paused: Bool, readyForDelivery: Bool) {
-            self.visible = visible; self.paused = paused; self.readyForDelivery = readyForDelivery
+            self.visible = visible
+            self.paused = paused
+            self.readyForDelivery = readyForDelivery
         }
     }
     public struct Update: Sendable {
@@ -33,7 +35,10 @@ public struct CompanionSchedule: Sendable {
     public mutating func didDeliver(at now: Double) { nextMeme = now + interval }
 
     public static func endsFocus(_ action: PetAction) -> Bool {
-        switch action { case .pet, .treat, .saySomething: false; default: true }
+        switch action {
+        case .pet, .treat, .saySomething: false
+        default: true
+        }
     }
 
     public mutating func update(now: Double, availability: Availability) -> Update {
@@ -41,7 +46,8 @@ public struct CompanionSchedule: Sendable {
             nextMeme = now + interval
             return Update(focusCompleted: true, deliverMeme: false)
         }
-        let deliver = automatic && now >= nextMeme && !focus.isActive
+        let deliver =
+            automatic && now >= nextMeme && !focus.isActive
             && availability.visible && !availability.paused && availability.readyForDelivery
         if deliver { didDeliver(at: now) }
         return Update(focusCompleted: false, deliverMeme: deliver)

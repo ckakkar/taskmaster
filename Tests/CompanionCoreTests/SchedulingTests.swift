@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import CompanionCore
 
 private let available = CompanionSchedule.Availability(visible: true, paused: false, readyForDelivery: true)
@@ -16,7 +17,10 @@ private let available = CompanionSchedule.Availability(visible: true, paused: fa
         var madeADecision = false
         for _ in 0..<300 {
             pet.tick(seconds: 0.1)
-            if pet.state != .sitting { madeADecision = true; break }
+            if pet.state != .sitting {
+                madeADecision = true
+                break
+            }
         }
         #expect(madeADecision)
     }
@@ -24,9 +28,12 @@ private let available = CompanionSchedule.Availability(visible: true, paused: fa
 
 @Test func unrelatedPreferenceEditsDoNotPostponeAutomaticMemes() {
     var preferences = Preferences()
-    preferences.autoMemes = true; preferences.memeInterval = 120
+    preferences.autoMemes = true
+    preferences.memeInterval = 120
     var schedule = CompanionSchedule(preferences: preferences, now: 1000)
-    preferences.size = 1.3; preferences.name = "Juniper"; preferences.completedFocusSessions = 8
+    preferences.size = 1.3
+    preferences.name = "Juniper"
+    preferences.completedFocusSessions = 8
     schedule.configure(preferences: preferences, now: 1100)
     #expect(schedule.nextMeme == 1120)
     let update = schedule.update(now: 1120, availability: available)
@@ -39,11 +46,15 @@ private let available = CompanionSchedule.Availability(visible: true, paused: fa
 }
 
 @Test func automaticDeliveriesWaitForAWelcomeMoment() {
-    var prefs = Preferences(); prefs.autoMemes = true; prefs.memeInterval = 120
+    var prefs = Preferences()
+    prefs.autoMemes = true
+    prefs.memeInterval = 120
     var schedule = CompanionSchedule(preferences: prefs, now: 100)
-    for state in [CompanionSchedule.Availability(visible: false, paused: false, readyForDelivery: true),
-                  .init(visible: true, paused: true, readyForDelivery: true),
-                  .init(visible: true, paused: false, readyForDelivery: false)] {
+    for state in [
+        CompanionSchedule.Availability(visible: false, paused: false, readyForDelivery: true),
+        .init(visible: true, paused: true, readyForDelivery: true),
+        .init(visible: true, paused: false, readyForDelivery: false),
+    ] {
         let update = schedule.update(now: 300, availability: state)
         #expect(!update.deliverMeme)
     }
@@ -58,12 +69,15 @@ private let available = CompanionSchedule.Availability(visible: true, paused: fa
 
 @Test func onlyQuietInteractionsKeepFocusAndCancelledFocusHasNoReminder() {
     for action in [PetAction.pet, .treat, .saySomething] { #expect(!CompanionSchedule.endsFocus(action)) }
-    for action in [PetAction.play, .nap, .wake, .comeHere(200), .surprise, .offerHighFive,
-                   .followCursor, .stopFollowing, .findTreat, .stretch, .muddyZoomies, .breakReminder] {
+    for action in [
+        PetAction.play, .nap, .wake, .comeHere(200), .surprise, .offerHighFive,
+        .followCursor, .stopFollowing, .findTreat, .stretch, .muddyZoomies, .breakReminder,
+    ] {
         #expect(CompanionSchedule.endsFocus(action))
     }
     var schedule = CompanionSchedule(preferences: Preferences(), now: 100)
-    schedule.startFocus(minutes: 1, now: 100); schedule.endFocus()
+    schedule.startFocus(minutes: 1, now: 100)
+    schedule.endFocus()
     let update = schedule.update(now: 500, availability: available)
     #expect(!update.focusCompleted)
 }
@@ -78,20 +92,39 @@ private let available = CompanionSchedule.Availability(visible: true, paused: fa
     #expect(pet.position == before && pet.delivery == route)
     pet.perform(.saySomething)
     #expect(pet.position == before && pet.delivery == route)
-    for _ in 0..<12000 { pet.tick(seconds: 1.0 / 60); if pet.delivery == nil { break } }
+    for _ in 0..<12000 {
+        pet.tick(seconds: 1.0 / 60)
+        if pet.delivery == nil { break }
+    }
     #expect(pet.delivery == nil)
     #expect((160...1280).contains(pet.position.x))
 }
 
 @Test func everyPreferenceIsEncodedAndAllNonDefaultValuesReload() throws {
     var p = Preferences()
-    p.name = "Juniper"; p.mischief = 0.9; p.size = 1.4; p.sound = true
-    p.allSpaces = false; p.quietWhenIdle = false; p.showName = true
-    p.customQuips = "Hello {name}"; p.includeBuiltInQuips = false; p.chatter = 0.8
-    p.bubbleStyle = .midnight; p.speechSeconds = 9; p.autoMemes = true
-    p.memeInterval = 900; p.memeStaySeconds = 45; p.focusMinutes = 40; p.completedFocusSessions = 3
-    p.coat = .dusk; p.accessory = .bow; p.accessoryColor = .rose
-    p.muddyPaws = false; p.pawprintSeconds = 70; p.cursorHeists = true
+    p.name = "Juniper"
+    p.mischief = 0.9
+    p.size = 1.4
+    p.sound = true
+    p.allSpaces = false
+    p.quietWhenIdle = false
+    p.showName = true
+    p.customQuips = "Hello {name}"
+    p.includeBuiltInQuips = false
+    p.chatter = 0.8
+    p.bubbleStyle = .midnight
+    p.speechSeconds = 9
+    p.autoMemes = true
+    p.memeInterval = 900
+    p.memeStaySeconds = 45
+    p.focusMinutes = 40
+    p.completedFocusSessions = 3
+    p.coat = .dusk
+    p.accessory = .bow
+    p.accessoryColor = .rose
+    p.muddyPaws = false
+    p.pawprintSeconds = 70
+    p.cursorHeists = true
     let data = try JSONEncoder().encode(p)
     let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
     #expect(Set(Mirror(reflecting: p).children.compactMap(\.label)) == Set(object.keys))

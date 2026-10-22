@@ -1,11 +1,14 @@
 import Foundation
 import Testing
+
 @testable import CompanionCore
 
 private let deliveryDesk = Habitat(left: 110, right: 1_330, floor: 20, ceiling: 700)
 
 @Test func legacyPreferencesKeepTheExistingPetWhenNewSettingsAreAdded() throws {
-    let legacy = Data(#"{"name":"Juniper","mischief":1,"size":1.4,"sound":true,"allSpaces":false,"quietWhenIdle":false,"showName":true}"#.utf8)
+    let legacy = Data(
+        #"{"name":"Juniper","mischief":1,"size":1.4,"sound":true,"allSpaces":false,"quietWhenIdle":false,"showName":true}"#
+            .utf8)
     let prefs = try JSONDecoder().decode(Preferences.self, from: legacy)
     #expect(prefs.name == "Juniper" && prefs.mischief == 1 && prefs.size == 1.4)
     #expect(prefs.sound && !prefs.allSpaces && prefs.showName)
@@ -16,12 +19,16 @@ private let deliveryDesk = Habitat(left: 110, right: 1_330, floor: 20, ceiling: 
 
 @Test func wardrobeAndMischiefSettingsSurviveSavingAndRejectUnknownStyles() throws {
     var prefs = Preferences()
-    prefs.coat = .moonlit; prefs.accessory = .bandana; prefs.accessoryColor = .lavender
-    prefs.cursorHeists = true; prefs.pawprintSeconds = .nan
+    prefs.coat = .moonlit
+    prefs.accessory = .bandana
+    prefs.accessoryColor = .lavender
+    prefs.cursorHeists = true
+    prefs.pawprintSeconds = .nan
     let saved = prefs.sanitized()
     #expect(saved.pawprintSeconds == 35)
     #expect(try JSONDecoder().decode(Preferences.self, from: JSONEncoder().encode(saved)) == saved)
-    let future = try JSONDecoder().decode(Preferences.self, from: Data(#"{"coat":"future","accessory":"hat","accessoryColor":"unknown"}"#.utf8))
+    let future = try JSONDecoder().decode(
+        Preferences.self, from: Data(#"{"coat":"future","accessory":"hat","accessoryColor":"unknown"}"#.utf8))
     #expect(future.coat == .cinnamon && future.accessory == .none && future.accessoryColor == .forest)
 }
 
@@ -51,7 +58,8 @@ private let deliveryDesk = Habitat(left: 110, right: 1_330, floor: 20, ceiling: 
 @Test func cursorHeistsReleaseForPauseFocusDraggingAndDisabledSettings() {
     for interruption in 0..<5 {
         var pet = PetEngine(habitat: deliveryDesk, seed: 71)
-        pet.mischief = 1; pet.allowsCursorHeists = true
+        pet.mischief = 1
+        pet.allowsCursorHeists = true
         let pointer = Point(x: pet.position.x + 30, y: 130)
         let began = pet.beginCursorHeist(at: pointer)
         #expect(began)
@@ -70,7 +78,8 @@ private let deliveryDesk = Habitat(left: 110, right: 1_330, floor: 20, ceiling: 
 
 @Test func aMissedHeistGivesUpAndDoesNotInterruptMemeDelivery() {
     var pet = PetEngine(habitat: deliveryDesk, seed: 72)
-    pet.mischief = 1; pet.allowsCursorHeists = true
+    pet.mischief = 1
+    pet.allowsCursorHeists = true
     let began = pet.beginCursorHeist(at: Point(x: pet.position.x - 300, y: 120))
     #expect(began)
     pet.tick(seconds: 0.1, cursor: Point(x: 600, y: 700))
@@ -93,7 +102,9 @@ private let deliveryDesk = Habitat(left: 110, right: 1_330, floor: 20, ceiling: 
         if enabled {
             #expect(prints.count > 8)
             for index in 1..<prints.count { #expect(abs(prints[index].x - prints[index - 1].x) >= 25) }
-        } else { #expect(prints.isEmpty) }
+        } else {
+            #expect(prints.isEmpty)
+        }
     }
 }
 
@@ -151,7 +162,9 @@ private let deliveryDesk = Habitat(left: 110, right: 1_330, floor: 20, ceiling: 
                 if route.phase == .bringing && route.progress(petX: pet.position.x) < 0.01 {
                     #expect(route.cardPosition.x < -100 || route.cardPosition.x > 1_540)
                 }
-            } else { break }
+            } else {
+                break
+            }
         }
         #expect(wentOffscreen && pet.delivery == nil)
         #expect(phases == Set(["fetching", "bringing", "displaying", "collecting", "returning", "comingHome"]))

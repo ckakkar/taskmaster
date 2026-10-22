@@ -1,7 +1,8 @@
 import Foundation
 
 public enum PetState: String, CaseIterable, Sendable {
-    case idle, walking, sitting, sleeping, carried, falling, happy, playing, scheming, curious, highFive, stretching, sniffing
+    case idle, walking, sitting, sleeping, carried, falling, happy, playing, scheming, curious, highFive, stretching,
+        sniffing
 
     public var description: String {
         switch self {
@@ -23,7 +24,9 @@ public enum PetState: String, CaseIterable, Sendable {
 }
 
 public enum PetAction: Sendable {
-    case pet, treat, play, nap, wake, comeHere(Double), surprise
+    case pet, treat, play, nap, wake
+    case comeHere(Double)
+    case surprise
     case offerHighFive, followCursor, stopFollowing, findTreat, stretch, saySomething, breakReminder
     case muddyZoomies
 }
@@ -68,8 +71,9 @@ public struct PetEngine: Sendable {
     public var muddyPaws = true
     public var visualScale: Double = 1
     public var cursorAnchor: Point {
-        Point(x: position.x + (facingRight ? 52 : -52) * visualScale,
-              y: position.y + 105 * visualScale)
+        Point(
+            x: position.x + (facingRight ? 52 : -52) * visualScale,
+            y: position.y + 105 * visualScale)
     }
     public var isFollowingCursor: Bool { elapsed < manualFollowUntil }
     public internal(set) var interactionCount = 0
@@ -79,8 +83,7 @@ public struct PetEngine: Sendable {
     public var quietWhenIdle = true
     public var isFocusing = false {
         didSet {
-            if isFocusing { cancelCursorHeist() }
-            else if oldValue { transition(to: .sitting, for: 4) }
+            if isFocusing { cancelCursorHeist() } else if oldValue { transition(to: .sitting, for: 4) }
         }
     }
     public var customQuips: [String] = []
@@ -145,7 +148,8 @@ public struct PetEngine: Sendable {
         }
     }
 
-    public mutating func tick(seconds: Double, cursor: Point? = nil, userIdle: Double = 0, cursorContact: Bool = false) {
+    public mutating func tick(seconds: Double, cursor: Point? = nil, userIdle: Double = 0, cursorContact: Bool = false)
+    {
         guard !isPaused, seconds.isFinite, seconds > 0 else { return }
         let dt = min(seconds, 0.1)
         elapsed += dt
@@ -159,9 +163,14 @@ public struct PetEngine: Sendable {
         observeCursor(cursor, contact: cursorContact, dt: dt)
 
         if !isFocusing, delivery == nil, chatter > 0, elapsed > nextChatter,
-           state == .sitting || state == .idle {
+            state == .sitting || state == .idle
+        {
             nextChatter = elapsed + random.value(in: 70...180) / max(0.2, chatter)
-            speak(["Just checking on my favorite human.", "Small steps count, too.", "I am supervising. Very professionally.", "A tiny pause is allowed."][Int(random.unit() * 4).clamped(to: 0...3)])
+            speak(
+                [
+                    "Just checking on my favorite human.", "Small steps count, too.",
+                    "I am supervising. Very professionally.", "A tiny pause is allowed.",
+                ][Int(random.unit() * 4).clamped(to: 0...3)])
         }
 
         if state == .carried { return }
@@ -249,7 +258,7 @@ public struct PetEngine: Sendable {
             return
         }
         if state == .playing { transition(to: .sitting, for: 4) }
-        if (elapsed < followingCursorUntil || isFollowingCursor), let cursor {
+        if elapsed < followingCursorUntil || isFollowingCursor, let cursor {
             let direction = cursor.x >= position.x ? 1.0 : -1.0
             targetX = (cursor.x - direction * 38).clamped(to: habitat.left...habitat.right)
             if abs(targetX - position.x) > 45 {
@@ -277,10 +286,11 @@ public struct PetEngine: Sendable {
         interactionCount += 1
         let speaking: Bool = if case .saySomething = action { true } else { false }
         if !speaking {
-            let canKeepCard: Bool = switch action {
-            case .pet, .treat, .offerHighFive, .stretch, .saySomething: true
-            default: false
-            }
+            let canKeepCard: Bool =
+                switch action {
+                case .pet, .treat, .offerHighFive, .stretch, .saySomething: true
+                default: false
+                }
             cancelCursorHeist()
             if delivery?.phase != .displaying || !canKeepCard { cancelDelivery() }
             affection = min(1, affection + 0.055)
@@ -306,7 +316,8 @@ public struct PetEngine: Sendable {
         case .play:
             let direction = position.x > (habitat.left + habitat.right) / 2 ? -1.0 : 1.0
             toy = Toy(
-                position: Point(x: (position.x + direction * 100).clamped(to: habitat.left...habitat.right), y: habitat.floor + 75),
+                position: Point(
+                    x: (position.x + direction * 100).clamped(to: habitat.left...habitat.right), y: habitat.floor + 75),
                 velocity: Point(x: direction * 95, y: 170)
             )
             transition(to: .playing, for: 2)
@@ -419,7 +430,8 @@ public struct PetEngine: Sendable {
         position.x = position.x.clamped(to: bounds ?? habitat.left...habitat.right)
         position.y = habitat.floor
         if muddyPaws, mischief > 0.72 || elapsed < muddyUntil,
-           abs(position.x - (footprintX ?? position.x - 28)) >= 25, abs(velocity.x) > 12 {
+            abs(position.x - (footprintX ?? position.x - 28)) >= 25, abs(velocity.x) > 12
+        {
             footprintX = position.x
             rightFoot.toggle()
             events.append(.footprint(Point(x: position.x, y: habitat.floor), rightFoot))

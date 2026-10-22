@@ -13,10 +13,12 @@ public enum WalkCycle {
         let stance = 0.62
         if p < stance { return Point(x: strideRatio * (stance / 2 - p), y: 0) }
         let t = (p - stance) / (1 - stance)
-        let t2 = t * t, t3 = t2 * t
+        let t2 = t * t
+        let t3 = t2 * t
         let halfStep = strideRatio * stance / 2
         let tangent = -strideRatio * (1 - stance)
-        let x = (2 * t3 - 3 * t2 + 1) * -halfStep + (t3 - 2 * t2 + t) * tangent
+        let x =
+            (2 * t3 - 3 * t2 + 1) * -halfStep + (t3 - 2 * t2 + t) * tangent
             + (-2 * t3 + 3 * t2) * halfStep + (t3 - t2) * tangent
         return Point(x: x, y: pow(sin(t * .pi), 1.2) * 0.055)
     }
@@ -61,8 +63,10 @@ public struct PetMotion: Sendable {
         let dt = min(0.1, max(0, seconds))
         let walking = engine.state == .walking && !engine.isPaused
         movement.advance(to: walking ? 1 : 0, seconds: dt, response: 15)
-        lean.advance(to: engine.state == .carried ? (-engine.velocity.x * 0.00015).clamped(to: -0.12...0.12)
-                     : walking ? engine.velocity.x * -0.00010 : 0, seconds: dt, response: 9)
+        lean.advance(
+            to: engine.state == .carried
+                ? (-engine.velocity.x * 0.00015).clamped(to: -0.12...0.12)
+                : walking ? engine.velocity.x * -0.00010 : 0, seconds: dt, response: 9)
         squash.advance(to: 0, seconds: dt, response: 17)
         let distance = lastPositionX.map { engine.position.x - $0 } ?? 0
         if walking && abs(distance) < 80 {

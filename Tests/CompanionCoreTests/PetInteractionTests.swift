@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import CompanionCore
 
 private let habitat = Habitat(left: 100, right: 1_200, floor: 30, ceiling: 800)
@@ -14,8 +15,7 @@ private let habitat = Habitat(left: 100, right: 1_200, floor: 30, ceiling: 800)
             let bodyX = (p - offset) * stride
             let foot = WalkCycle.foot(phase: (p - offset) * 2 * .pi, offset: offset)
             let worldX = bodyX + foot.x * width
-            if let first { #expect(abs(worldX - first) < 0.000001) }
-            else { first = worldX }
+            if let first { #expect(abs(worldX - first) < 0.000001) } else { first = worldX }
             #expect(foot.y == 0)
         }
     }

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+
 @testable import CompanionCore
 
 private let desk = Habitat(left: 100, right: 1_200, floor: 50, ceiling: 800)

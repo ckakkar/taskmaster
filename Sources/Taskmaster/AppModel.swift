@@ -1,6 +1,6 @@
 import AppKit
-import SwiftUI
 import CompanionCore
+import SwiftUI
 import UniformTypeIdentifiers
 
 @MainActor
@@ -67,7 +67,8 @@ final class AppModel: ObservableObject {
         preferencesURL = directory.appendingPathComponent("preferences.json")
         library = MemeLibrary(directory: directory)
         if let data = try? Data(contentsOf: preferencesURL),
-           let saved = try? JSONDecoder().decode(Preferences.self, from: data) {
+            let saved = try? JSONDecoder().decode(Preferences.self, from: data)
+        {
             preferences = saved.sanitized()
         } else {
             preferences = Preferences()
@@ -119,8 +120,16 @@ final class AppModel: ObservableObject {
     }
 
     func addQuipPack(chaotic: Bool) {
-        let pack = chaotic ? ["this desk has been acquired by {name}.", "urgent: the snack situation is unacceptable.", "i have investigated. it is definitely a problem for tomorrow.", "i am the manager now."]
-            : ["one little step is still a step.", "{name} believes in you.", "you don’t have to earn a tiny break.", "drink some water. i’ll keep your place."]
+        let pack =
+            chaotic
+            ? [
+                "this desk has been acquired by {name}.", "urgent: the snack situation is unacceptable.",
+                "i have investigated. it is definitely a problem for tomorrow.", "i am the manager now.",
+            ]
+            : [
+                "one little step is still a step.", "{name} believes in you.", "you don’t have to earn a tiny break.",
+                "drink some water. i’ll keep your place.",
+            ]
         var lines = preferences.quipLines
         for line in pack where !lines.contains(line) { lines.append(line) }
         preferences.customQuips = lines.joined(separator: "\n")
@@ -140,14 +149,24 @@ final class AppModel: ObservableObject {
         schedule?.didDeliver(at: Date().timeIntervalSince1970)
     }
 
-    func putMemeAway() { desktop.engine.recallDelivery(); desktop.renderNow() }
-    func keepMemeLonger() { desktop.engine.keepDeliveryLonger(); desktop.renderNow() }
+    func putMemeAway() {
+        desktop.engine.recallDelivery()
+        desktop.renderNow()
+    }
+    func keepMemeLonger() {
+        desktop.engine.keepDeliveryLonger()
+        desktop.renderNow()
+    }
 
-    func wipePawprints() { desktop.scene.clearFootprints(); previews.forEach { $0.clearFootprints() } }
+    func wipePawprints() {
+        desktop.scene.clearFootprints()
+        for preview in previews { preview.clearFootprints() }
+    }
 
     func inviteCursorHeist() {
         desktop.engine.inviteCursorHeist()
-        chaosMessage = "Move your pointer near \(preferences.name) at the bottom of the screen. Click or pull away to take it back."
+        chaosMessage =
+            "Move your pointer near \(preferences.name) at the bottom of the screen. Click or pull away to take it back."
     }
 
     func importMemes() {
@@ -166,10 +185,14 @@ final class AppModel: ObservableObject {
                 var count = 0
                 var failure: String?
                 for url in urls {
-                    do { _ = try await self.library.importFile(url); count += 1 }
-                    catch { failure = error.localizedDescription }
+                    do {
+                        _ = try await self.library.importFile(url)
+                        count += 1
+                    } catch { failure = error.localizedDescription }
                 }
-                self.libraryMessage = "Added \(count) image\(count == 1 ? "" : "s")." + (failure.map { " " + $0 } ?? " Your originals stay where they are.")
+                self.libraryMessage =
+                    "Added \(count) image\(count == 1 ? "" : "s")."
+                    + (failure.map { " " + $0 } ?? " Your originals stay where they are.")
             }
         }
     }
@@ -212,17 +235,20 @@ final class AppModel: ObservableObject {
         desktop?.engine.isFocusing = false
         desktop?.applyPreferences()
         desktop?.scene.setFocus(text: nil, progress: 0)
-        previews.forEach { $0.setFocus(text: nil, progress: 0) }
+        for preview in previews { preview.setFocus(text: nil, progress: 0) }
     }
 
     func updateServices() {
         let now = Date().timeIntervalSince1970
         guard Int(now) != lastServiceSecond else { return }
         lastServiceSecond = Int(now)
-        let update = schedule?.update(now: now, availability: .init(visible: isVisible, paused: isPaused,
-            readyForDelivery: desktop.engine.delivery == nil && desktop.engine.cursorHeist == nil
-                && desktop.engine.state != .sleeping && desktop.engine.state != .carried
-                && desktop.engine.state != .falling && !library.enabledItems.isEmpty))
+        let update = schedule?.update(
+            now: now,
+            availability: .init(
+                visible: isVisible, paused: isPaused,
+                readyForDelivery: desktop.engine.delivery == nil && desktop.engine.cursorHeist == nil
+                    && desktop.engine.state != .sleeping && desktop.engine.state != .carried
+                    && desktop.engine.state != .falling && !library.enabledItems.isEmpty))
         if update?.focusCompleted == true {
             stopFocus()
             preferences.completedFocusSessions += 1
@@ -234,16 +260,20 @@ final class AppModel: ObservableObject {
             focusLabel = String(format: "%02d:%02d", remaining / 60, remaining % 60)
             focusProgress = focus.progress(at: now)
             desktop.scene.setFocus(text: focusLabel, progress: focusProgress)
-            previews.forEach { $0.setFocus(text: focusLabel, progress: focusProgress) }
+            for preview in previews { preview.setFocus(text: focusLabel, progress: focusProgress) }
         }
         if update?.deliverMeme == true { bringMeme() }
     }
 
-    func flushPreferences() { saveTask?.cancel(); savePreferences() }
+    func flushPreferences() {
+        saveTask?.cancel()
+        savePreferences()
+    }
 
     private func savePreferences() {
         do {
-            try FileManager.default.createDirectory(at: preferencesURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(
+                at: preferencesURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(preferences.sanitized()).write(to: preferencesURL, options: .atomic)

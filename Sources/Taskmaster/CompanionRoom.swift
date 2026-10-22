@@ -1,7 +1,7 @@
 import AppKit
+import CompanionCore
 import SpriteKit
 import SwiftUI
-import CompanionCore
 
 enum Palette {
     static let paper = Color(red: 0.985, green: 0.973, blue: 0.95)
@@ -45,17 +45,24 @@ struct CompanionRoom: View {
             Spacer()
             HStack(spacing: 6) {
                 Circle().fill(model.isPaused ? Palette.secondary : Palette.green).frame(width: 5, height: 5)
-                Text(model.isPaused ? "Taking a little pause" : model.isVisible ? "At home on your desktop" : "Tucked away for now")
-                    .font(.system(size: 11, weight: .medium))
+                Text(
+                    model.isPaused
+                        ? "Taking a little pause" : model.isVisible ? "At home on your desktop" : "Tucked away for now"
+                )
+                .font(.system(size: 11, weight: .medium))
             }
             .foregroundStyle(Palette.secondary)
-            Button { model.customize(.look) } label: {
+            Button {
+                model.customize(.look)
+            } label: {
                 Label("Make it yours", systemImage: "sparkles")
                     .font(.system(size: 11, weight: .medium)).padding(.horizontal, 11).padding(.vertical, 8)
                     .background(.white.opacity(0.7), in: Capsule())
                     .overlay(Capsule().stroke(Palette.line.opacity(0.7), lineWidth: 0.7))
             }.buttonStyle(.plain)
-            Button { model.showPreferences.toggle() } label: {
+            Button {
+                model.showPreferences.toggle()
+            } label: {
                 Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 15))
                     .frame(width: 34, height: 32)
@@ -83,7 +90,11 @@ struct CompanionRoom: View {
 
             ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: 25)
-                    .fill(LinearGradient(colors: [Color(red: 0.96, green: 0.91, blue: 0.83), Color(red: 0.97, green: 0.94, blue: 0.88)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.96, green: 0.91, blue: 0.83), Color(red: 0.97, green: 0.94, blue: 0.88),
+                            ], startPoint: .topLeading, endPoint: .bottomTrailing))
                 RoomBackdrop()
                 VStack {
                     HStack {
@@ -99,16 +110,28 @@ struct CompanionRoom: View {
                 .padding(22)
                 PetPreview(model: model)
                     .padding(.top, 35)
-                    .accessibilityLabel(model.state == .highFive
-                        ? "\(model.preferences.name) offers a high five. Press to return it."
-                        : "\(model.preferences.name), your red panda. Press to pet.")
+                    .accessibilityLabel(
+                        model.state == .highFive
+                            ? "\(model.preferences.name) offers a high five. Press to return it."
+                            : "\(model.preferences.name), your red panda. Press to pet."
+                    )
                     .accessibilityAddTraits(.isButton)
                     .accessibilityAction { model.perform(.pet) }
                 HStack(spacing: 5) {
                     Image(systemName: model.state == .sleeping ? "moon.zzz.fill" : "heart.fill")
                         .font(.system(size: 9))
-                    Text(model.isPaused ? "Just being here" : model.focusActive ? "Quiet company · \(model.focusLabel)" : model.isStealingCursor ? "A very tiny crime in progress" : model.deliveryPhase?.description ?? (model.isFollowingCursor ? "Following your little arrow" : model.state.description))
-                        .font(.system(size: 10, weight: .medium))
+                    Text(
+                        model.isPaused
+                            ? "Just being here"
+                            : model.focusActive
+                                ? "Quiet company · \(model.focusLabel)"
+                                : model.isStealingCursor
+                                    ? "A very tiny crime in progress"
+                                    : model.deliveryPhase?.description
+                                        ?? (model.isFollowingCursor
+                                            ? "Following your little arrow" : model.state.description)
+                    )
+                    .font(.system(size: 10, weight: .medium))
                 }
                 .foregroundStyle(Palette.secondary)
                 .padding(.horizontal, 11)
@@ -121,7 +144,10 @@ struct CompanionRoom: View {
 
             HStack(spacing: 7) {
                 Image(systemName: "hand.draw").font(.system(size: 13))
-                Text(model.state == .highFive ? "Click the raised paw. Tiny teamwork." : "Move your cursor close. Stroke gently.").font(.system(size: 11))
+                Text(
+                    model.state == .highFive
+                        ? "Click the raised paw. Tiny teamwork." : "Move your cursor close. Stroke gently."
+                ).font(.system(size: 11))
             }
             .foregroundStyle(Palette.secondary)
             .frame(maxWidth: .infinity)
@@ -140,8 +166,12 @@ struct CompanionRoom: View {
                     ProgressView(value: model.focusProgress).tint(Palette.green)
                 } else {
                     HStack {
-                        Button { if model.deliveryPhase == nil { model.bringMeme() } else { model.putMemeAway() } } label: {
-                            Label(model.deliveryPhase == nil ? "Bring a meme" : "Send it back", systemImage: "photo.on.rectangle")
+                        Button {
+                            if model.deliveryPhase == nil { model.bringMeme() } else { model.putMemeAway() }
+                        } label: {
+                            Label(
+                                model.deliveryPhase == nil ? "Bring a meme" : "Send it back",
+                                systemImage: "photo.on.rectangle")
                         }
                         Spacer()
                         Button("My meme stash") { model.customize(.memes) }
@@ -205,14 +235,27 @@ struct CompanionRoom: View {
             HStack(spacing: 9) {
                 RitualButton(title: "Treat", symbol: "carrot.fill") { model.perform(.treat) }
                 RitualButton(title: "Play", symbol: "tennisball.fill") { model.perform(.play) }
-                RitualButton(title: model.state == .sleeping ? "Wake" : "Nap", symbol: model.state == .sleeping ? "sun.max.fill" : "moon.zzz.fill") { model.toggleNap() }
+                RitualButton(
+                    title: model.state == .sleeping ? "Wake" : "Nap",
+                    symbol: model.state == .sleeping ? "sun.max.fill" : "moon.zzz.fill"
+                ) { model.toggleNap() }
             }
             HStack(spacing: 9) {
-                RitualButton(title: "High five", symbol: "hand.raised.fingers.spread.fill", hint: "Offer a high five, then click the raised paw.") { model.perform(.offerHighFive) }
-                RitualButton(title: model.isFollowingCursor ? "Stay here" : "Follow me", symbol: "cursorarrow.motionlines", hint: "\(model.preferences.name) follows your cursor along the desktop for a minute. Click Stay here to stop.") {
+                RitualButton(
+                    title: "High five", symbol: "hand.raised.fingers.spread.fill",
+                    hint: "Offer a high five, then click the raised paw."
+                ) { model.perform(.offerHighFive) }
+                RitualButton(
+                    title: model.isFollowingCursor ? "Stay here" : "Follow me", symbol: "cursorarrow.motionlines",
+                    hint:
+                        "\(model.preferences.name) follows your cursor along the desktop for a minute. Click Stay here to stop."
+                ) {
                     model.perform(model.isFollowingCursor ? .stopFollowing : .followCursor)
                 }
-                RitualButton(title: "Find a snack", symbol: "sparkle.magnifyingglass", hint: "Watch \(model.preferences.name) find and eat a little biscuit.") { model.perform(.findTreat) }
+                RitualButton(
+                    title: "Find a snack", symbol: "sparkle.magnifyingglass",
+                    hint: "Watch \(model.preferences.name) find and eat a little biscuit."
+                ) { model.perform(.findTreat) }
             }
         }
     }
@@ -227,19 +270,28 @@ struct CompanionRoom: View {
                 }
                 .foregroundStyle(Palette.secondary)
                 Spacer()
-                Button { model.isVisible.toggle() } label: {
-                    Label(model.isVisible ? "Tuck away" : "Bring back", systemImage: model.isVisible ? "eye.slash" : "eye")
-                        .font(.system(size: 11))
+                Button {
+                    model.isVisible.toggle()
+                } label: {
+                    Label(
+                        model.isVisible ? "Tuck away" : "Bring back", systemImage: model.isVisible ? "eye.slash" : "eye"
+                    )
+                    .font(.system(size: 11))
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Palette.secondary)
-                Button { model.isPaused.toggle() } label: {
-                    Label(model.isPaused ? "Let’s wander" : "Settle down", systemImage: model.isPaused ? "play.fill" : "pause.fill")
-                        .font(.system(size: 11, weight: .medium))
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 9)
-                        .background(Palette.ink, in: Capsule())
-                        .foregroundStyle(Palette.paper)
+                Button {
+                    model.isPaused.toggle()
+                } label: {
+                    Label(
+                        model.isPaused ? "Let’s wander" : "Settle down",
+                        systemImage: model.isPaused ? "play.fill" : "pause.fill"
+                    )
+                    .font(.system(size: 11, weight: .medium))
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 9)
+                    .background(Palette.ink, in: Capsule())
+                    .foregroundStyle(Palette.paper)
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, 12)
@@ -273,8 +325,14 @@ private struct PersonalityCard: View {
             }
             .padding(.horizontal, 13)
             .padding(.vertical, 12)
-            .background(selected ? Color(red: 0.97, green: 0.91, blue: 0.86) : .white.opacity(0.6), in: RoundedRectangle(cornerRadius: 13))
-            .overlay(RoundedRectangle(cornerRadius: 13).stroke(selected ? Palette.orange.opacity(0.5) : Palette.line.opacity(0.55), lineWidth: 0.8))
+            .background(
+                selected ? Color(red: 0.97, green: 0.91, blue: 0.86) : .white.opacity(0.6),
+                in: RoundedRectangle(cornerRadius: 13)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 13).stroke(
+                    selected ? Palette.orange.opacity(0.5) : Palette.line.opacity(0.55), lineWidth: 0.8)
+            )
             .contentShape(RoundedRectangle(cornerRadius: 13))
         }
         .buttonStyle(.plain)
@@ -313,7 +371,9 @@ private struct RoomBackdrop: View {
             Canvas { context, size in
                 for x in stride(from: 18.0, to: size.width, by: 22) {
                     for y in stride(from: 18.0, to: size.height, by: 22) {
-                        context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 1.4, height: 1.4)), with: .color(Palette.secondary.opacity(0.13)))
+                        context.fill(
+                            Path(ellipseIn: CGRect(x: x, y: y, width: 1.4, height: 1.4)),
+                            with: .color(Palette.secondary.opacity(0.13)))
                     }
                 }
             }
@@ -358,10 +418,12 @@ private struct PreferencesPanel: View {
             Toggle("Wander across desktop Spaces", isOn: $model.preferences.allSpaces)
             Toggle("Nap when I’ve been away a while", isOn: $model.preferences.quietWhenIdle)
             Toggle("Little sound effects", isOn: $model.preferences.sound)
-            Text("Drag to pick up. Click to pet. Right-click for little rituals. The paw in your menu bar is always there.")
-                .font(.system(size: 11))
-                .foregroundStyle(Palette.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            Text(
+                "Drag to pick up. Click to pet. Right-click for little rituals. The paw in your menu bar is always there."
+            )
+            .font(.system(size: 11))
+            .foregroundStyle(Palette.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .font(.system(size: 12))
         .padding(25)
@@ -404,7 +466,9 @@ struct PetPreview: NSViewRepresentable {
         override func updateTrackingAreas() {
             super.updateTrackingAreas()
             if let tracking { removeTrackingArea(tracking) }
-            let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect], owner: self)
+            let area = NSTrackingArea(
+                rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+                owner: self)
             addTrackingArea(area)
             tracking = area
         }
@@ -413,11 +477,15 @@ struct PetPreview: NSViewRepresentable {
             let point = convert(event.locationInWindow, from: nil)
             defer { lastPointer = point }
             guard let previous = lastPointer, let scene = scene as? PetScene,
-                  scene.hitPet(scene.convertPoint(fromView: point)), let model else { return }
+                scene.hitPet(scene.convertPoint(fromView: point)), let model
+            else { return }
             model.desktop.engine.stroke(distance: hypot(point.x - previous.x, point.y - previous.y))
         }
 
-        override func mouseExited(with event: NSEvent) { lastPointer = nil; NSCursor.arrow.set() }
+        override func mouseExited(with event: NSEvent) {
+            lastPointer = nil
+            NSCursor.arrow.set()
+        }
         override func mouseDragged(with event: NSEvent) { mouseMoved(with: event) }
         override func mouseDown(with event: NSEvent) {
             if let scene = scene as? PetScene, model?.deliveryPhase == .displaying {
@@ -428,8 +496,9 @@ struct PetPreview: NSViewRepresentable {
                 }
             }
             guard let scene = scene as? PetScene,
-                  (scene.hitPet(scene.convertPoint(fromView: convert(event.locationInWindow, from: nil)))
-                    || scene.hitPaw(scene.convertPoint(fromView: convert(event.locationInWindow, from: nil)))) else { return }
+                scene.hitPet(scene.convertPoint(fromView: convert(event.locationInWindow, from: nil)))
+                    || scene.hitPaw(scene.convertPoint(fromView: convert(event.locationInWindow, from: nil)))
+            else { return }
             lastPointer = convert(event.locationInWindow, from: nil)
             model?.perform(.pet)
         }

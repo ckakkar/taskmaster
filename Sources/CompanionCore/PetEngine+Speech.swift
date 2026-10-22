@@ -22,9 +22,13 @@ extension PetEngine {
     mutating func makeMischief() {
         lastPrank = elapsed
         transition(to: .scheming, for: 4.5)
-        let notes = mischief > 0.7
+        let notes =
+            mischief > 0.7
             ? ["this is my desk now.", "urgent: more snacks.", "i have a tiny complaint.", "nothing to see here."]
-            : ["a little company for you.", "i brought you a good thought.", "small paws. big fan.", "you can pet the panda."]
+            : [
+                "a little company for you.", "i brought you a good thought.", "small paws. big fan.",
+                "you can pet the panda.",
+            ]
         let index = Int(random.unit() * Double(notes.count)).clamped(to: 0...(notes.count - 1))
         if let text = pickQuip(notes[index]) { events.append(.note(position, text)) }
     }

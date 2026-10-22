@@ -4,15 +4,20 @@ extension PetEngine {
     public mutating func beginDelivery(memeID: String, screenLeft: Double, screenRight: Double, staySeconds: Double) {
         guard delivery == nil, screenLeft.isFinite, screenRight.isFinite, screenRight > screenLeft else { return }
         cancelCursorHeist()
-        toy = nil; snack = nil; isUserNap = false
-        manualFollowUntil = 0; followingCursorUntil = 0
+        toy = nil
+        snack = nil
+        isUserNap = false
+        manualFollowUntil = 0
+        followingCursorUntil = 0
         let left = position.x < (screenLeft + screenRight) / 2
         let direction = left ? 1.0 : -1.0
         let exit = left ? screenLeft - 460 : screenRight + 460
         let drop = ((screenLeft + screenRight) / 2 + direction * 200).clamped(to: habitat.left...habitat.right)
-        delivery = MemeDelivery(memeID: memeID, entryDirection: direction, exitX: exit,
+        delivery = MemeDelivery(
+            memeID: memeID, entryDirection: direction, exitX: exit,
             dropPetX: drop, cardPosition: Point(x: drop - direction * 200, y: habitat.floor + 12),
-            legStartX: position.x, targetX: exit, staySeconds: staySeconds.isFinite ? staySeconds.clamped(to: 8...120) : 20)
+            legStartX: position.x, targetX: exit,
+            staySeconds: staySeconds.isFinite ? staySeconds.clamped(to: 8...120) : 20)
         transition(to: .walking, for: .infinity)
     }
 
@@ -26,7 +31,9 @@ extension PetEngine {
             route.phase = .collecting
             route.legStartX = position.x
             route.targetX = route.cardPosition.x - route.entryDirection * 200
-        } else { return }
+        } else {
+            return
+        }
         delivery = route
         transition(to: .walking, for: .infinity)
     }
@@ -53,7 +60,8 @@ extension PetEngine {
             route.legStartX = position.x
             route.targetX = route.cardPosition.x - route.entryDirection * 200
         }
-        let range = min(habitat.left, min(route.exitX, route.targetX))...max(habitat.right, max(route.exitX, route.targetX))
+        let range =
+            min(habitat.left, min(route.exitX, route.targetX))...max(habitat.right, max(route.exitX, route.targetX))
         if abs(position.x - route.targetX) > 3 {
             walk(toward: route.targetX, dt: dt, speed: 145 + 35 * mischief, bounds: range)
             if route.isCarrying {
