@@ -218,7 +218,7 @@ final class PetAtlas {
         case .walking: .standing
         case .sitting: .sitting
         case .sleeping: .sleeping
-        case .carried, .falling, .flying, .grappling: .carried
+        case .carried, .falling, .flying: .carried
         case .happy: .delighted
         case .playing, .curious: .playBow
         case .scheming: .mischievous

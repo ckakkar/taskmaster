@@ -131,10 +131,16 @@ public struct Preferences: Codable, Equatable, Sendable {
 
     public var personality: Personality { .closest(to: mischief) }
 
+    public func resolvingAvatar(available: Set<AvatarKind>) -> Preferences {
+        var copy = self
+        if !available.contains(avatar) { copy.avatar = .miso }
+        return copy
+    }
+
     public func sanitized() -> Preferences {
         var copy = self
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        copy.name = cleanName.isEmpty ? "Miso" : String(cleanName.prefix(24))
+        copy.name = cleanName.isEmpty ? avatar.title : String(cleanName.prefix(24))
         copy.mischief = mischief.isFinite ? mischief.clamped(to: 0...1) : 0.25
         copy.size = size.isFinite ? size.clamped(to: 0.65...1.5) : 1
         copy.customQuips = quipLines.joined(separator: "\n")

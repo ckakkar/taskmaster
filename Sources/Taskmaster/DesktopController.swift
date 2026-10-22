@@ -95,9 +95,7 @@ final class DesktopController: NSObject {
         if !engine.allowsCursorHeists || engine.mischief < 0.75 { engine.cancelCursorHeist() }
         let habitat = Self.habitat(for: screen, scale: model.preferences.size)
         if engine.habitat != habitat {
-            let route = engine.aerialRoute
             engine.changeHabitat(habitat)
-            if route != nil { engine.startAerialTour() }
         }
         panel.collectionBehavior =
             model.preferences.allSpaces
@@ -197,8 +195,9 @@ final class DesktopController: NSObject {
         for preview in model.previews { preview.handle(events) }
         let cardHit = engine.delivery?.phase == .displaying && scene.memeAction(at: localPoint) != nil
         let interactive =
-            cardHit || scene.hitPet(localPoint) || scene.hitPaw(localPoint) || scene.hitBall(localPoint)
-            || scene.hitNote(localPoint)
+            engine.aerialRoute == nil
+            && (cardHit || scene.hitPet(localPoint) || scene.hitPaw(localPoint) || scene.hitBall(localPoint)
+                || scene.hitNote(localPoint))
         panel.ignoresMouseEvents = !(isDragging || interactive)
         presentationTick += 1
         if presentationTick % 12 == 0 { model.syncPresentation() }
@@ -245,17 +244,24 @@ final class DesktopController: NSObject {
     }
 
     private func move(to newScreen: NSScreen) {
+        let changedDisplay = Self.displayID(screen) != Self.displayID(newScreen)
+        let habitat = Self.habitat(for: newScreen, scale: model.preferences.size)
+        if !changedDisplay, panel.frame == newScreen.frame, engine.habitat == habitat {
+            screen = newScreen
+            return
+        }
         screen = newScreen
         panel.setFrame(newScreen.frame, display: true)
         canvas.frame = CGRect(origin: .zero, size: newScreen.frame.size)
         scene.size = newScreen.frame.size
-        engine.cancelDelivery()
-        engine.changeHabitat(Self.habitat(for: newScreen, scale: model.preferences.size))
+        engine.rehome(to: habitat, changedDisplay: changedDisplay)
     }
 
     @objc private func displaysChanged() {
         let pointer = NSEvent.mouseLocation
-        let target = NSScreen.screens.first { $0.frame.contains(pointer) } ?? NSScreen.main
+        let target =
+            NSScreen.screens.first { Self.displayID($0) == Self.displayID(screen) }
+            ?? NSScreen.screens.first { $0.frame.contains(pointer) } ?? NSScreen.main
         if let target { move(to: target) }
     }
 
@@ -277,6 +283,10 @@ final class DesktopController: NSObject {
             left: frame.minX + margin, right: frame.maxX - margin,
             floor: frame.minY + 7, ceiling: max(frame.minY + 7, frame.maxY - 250 * scale)
         )
+    }
+
+    private static func displayID(_ screen: NSScreen) -> UInt32 {
+        (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
     }
 }
 

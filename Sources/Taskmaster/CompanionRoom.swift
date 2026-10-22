@@ -146,7 +146,10 @@ struct CompanionRoom: View {
                 Image(systemName: "hand.draw").font(.system(size: 13))
                 Text(
                     model.state == .highFive
-                        ? "Click the raised paw. Tiny teamwork." : "Move your cursor close. Stroke gently."
+                        ? "Click the raised paw. Tiny teamwork."
+                        : model.state == .flying
+                            ? "Flying passes clicks through. Land gently to interact."
+                            : "Move your cursor close. Stroke gently."
                 ).font(.system(size: 11))
             }
             .foregroundStyle(Palette.secondary)
@@ -260,10 +263,10 @@ struct CompanionRoom: View {
                 ) { model.perform(.findTreat) }
             }
             Button {
-                model.perform(model.state == .flying || model.state == .grappling ? .stopFollowing : .signature)
+                model.perform(model.state == .flying ? .stopFollowing : .signature)
             } label: {
                 Label(
-                    model.state == .flying || model.state == .grappling
+                    model.state == .flying
                         ? "Land gently" : model.preferences.avatar.signature,
                     systemImage: model.preferences.avatar.symbol
                 ).frame(maxWidth: .infinity)
@@ -277,7 +280,7 @@ struct CompanionRoom: View {
             HStack {
                 HStack(spacing: 7) {
                     Image(systemName: "leaf").font(.system(size: 11))
-                    Text("Small paws. Big personality.").font(.system(size: 11))
+                    Text(model.preferences.avatar.subtitle).font(.system(size: 11))
                 }
                 .foregroundStyle(Palette.secondary)
                 Spacer()
@@ -410,7 +413,7 @@ private struct PreferencesPanel: View {
             Text("Make yourself at home.").font(.system(size: 21, design: .serif))
             VStack(alignment: .leading, spacing: 7) {
                 Text("Companion’s name").font(.system(size: 11, weight: .medium))
-                TextField("Miso", text: $model.preferences.name)
+                TextField(model.preferences.avatar.title, text: $model.preferences.name)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit { model.preferences = model.preferences.sanitized() }
             }

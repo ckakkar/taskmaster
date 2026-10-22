@@ -2,7 +2,7 @@ import Foundation
 
 extension PetEngine {
     public mutating func startAerialTour() {
-        guard avatar != .miso, !isFocusing, !isPaused else { return }
+        guard avatar == .toothless, !isFocusing, !isPaused else { return }
         cancelCursorHeist()
         cancelDelivery()
         toy = nil
@@ -11,9 +11,10 @@ extension PetEngine {
         followingCursorUntil = 0
         isUserNap = false
         aerialUntil = elapsed + 25
+        nextAerialAt = elapsed + 180
         afterLanding = nil
         nextAerialRoute()
-        speak(avatar == .toothless ? "Mrrp. Watch this." : "Patrol starts now. I’ll take the high road.")
+        speak("Mrrp. Watch this.")
     }
 
     public mutating func landAerialTour() {
@@ -21,7 +22,7 @@ extension PetEngine {
         aerialUntil = elapsed
         aerialRoute = AerialRoute(
             start: position, end: Point(x: position.x, y: habitat.floor),
-            anchor: Point(x: position.x, y: habitat.ceiling + 180), duration: 1.4, landing: true)
+            duration: 1.4, landing: true)
     }
 
     public mutating func cancelAerialTour() {
@@ -36,6 +37,11 @@ extension PetEngine {
         }
     }
 
+    public mutating func rehome(to habitat: Habitat, changedDisplay: Bool) {
+        if changedDisplay { cancelDelivery() }
+        changeHabitat(habitat)
+    }
+
     mutating func nextAerialRoute() {
         var end = Point(
             x: random.value(in: habitat.left...habitat.right),
@@ -43,13 +49,11 @@ extension PetEngine {
         if isFollowingCursor, let cursor = previousCursor {
             end = habitat.clamped(Point(x: cursor.x, y: cursor.y - 55))
         }
-        let duration = (position.distance(to: end) / (avatar == .toothless ? 210 : 270)).clamped(to: 1.8...5)
+        let duration = (position.distance(to: end) / 210).clamped(to: 1.8...5)
         aerialRoute = AerialRoute(
             start: position, end: end,
-            anchor: Point(
-                x: ((position.x + end.x) / 2).clamped(to: habitat.left...habitat.right),
-                y: habitat.ceiling + 180), duration: duration, landing: false)
-        transition(to: avatar == .toothless ? .flying : .grappling, for: .infinity)
+            duration: duration, landing: false)
+        transition(to: .flying, for: .infinity)
     }
 
     mutating func updateAerial(_ dt: Double) -> Bool {

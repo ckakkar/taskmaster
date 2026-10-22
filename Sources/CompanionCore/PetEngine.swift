@@ -2,7 +2,7 @@ import Foundation
 
 public enum PetState: String, CaseIterable, Sendable {
     case idle, walking, sitting, sleeping, carried, falling, happy, playing, scheming, curious, highFive, stretching,
-        sniffing, flying, grappling
+        sniffing, flying
 
     public var description: String {
         switch self {
@@ -20,7 +20,6 @@ public enum PetState: String, CaseIterable, Sendable {
         case .stretching: "A biiig little stretch"
         case .sniffing: "Sniffing out a snack"
         case .flying: "A little dragon. A big sky."
-        case .grappling: "Keeping the desktop safe"
         }
     }
 }
@@ -119,6 +118,7 @@ public struct PetEngine: Sendable {
     var rightFoot = false
     var aerialUntil: Double = 0
     var afterLanding: PetAction?
+    var nextAerialAt: Double = 90
 
     public init(habitat: Habitat, seed: UInt64 = UInt64.random(in: 1...UInt64.max)) {
         self.habitat = habitat
@@ -129,10 +129,25 @@ public struct PetEngine: Sendable {
     }
 
     public mutating func changeHabitat(_ newHabitat: Habitat) {
-        if aerialRoute != nil { cancelAerialTour() }
+        let oldHabitat = habitat
         cancelCursorHeist()
         footprintX = nil
         habitat = newHabitat
+        if var route = aerialRoute {
+            func map(_ point: Point) -> Point {
+                let x = (point.x - oldHabitat.left) / max(1, oldHabitat.right - oldHabitat.left)
+                let y = (point.y - oldHabitat.floor) / max(1, oldHabitat.ceiling - oldHabitat.floor)
+                return newHabitat.clamped(
+                    Point(
+                        x: newHabitat.left + x * (newHabitat.right - newHabitat.left),
+                        y: newHabitat.floor + y * (newHabitat.ceiling - newHabitat.floor)))
+            }
+            route.start = map(route.start)
+            route.end = map(route.end)
+            position = map(position)
+            aerialRoute = route
+            return
+        }
         if delivery != nil {
             let shift = newHabitat.floor - position.y
             position.y = newHabitat.floor
@@ -479,7 +494,7 @@ public struct PetEngine: Sendable {
 
     mutating func decide(cursor: Point?) {
         let roll = random.unit()
-        if avatar != .miso, mischief > 0.3, roll < 0.38 {
+        if avatar != .miso, mischief > 0.3, elapsed >= nextAerialAt, roll < 0.06 {
             startAerialTour()
             return
         }

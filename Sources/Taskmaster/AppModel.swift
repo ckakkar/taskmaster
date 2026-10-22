@@ -70,7 +70,7 @@ final class AppModel: ObservableObject {
         if let data = try? Data(contentsOf: preferencesURL),
             let saved = try? JSONDecoder().decode(Preferences.self, from: data)
         {
-            preferences = saved.sanitized()
+            preferences = saved.sanitized().resolvingAvatar(available: Set(AvatarKind.available))
         } else {
             preferences = Preferences()
         }
@@ -190,7 +190,7 @@ final class AppModel: ObservableObject {
     func inviteCursorHeist() {
         desktop.engine.inviteCursorHeist()
         chaosMessage =
-            "Move your pointer near \(preferences.name) at the bottom of the screen. Click or pull away to take it back."
+            "Move your pointer near \(preferences.name) at the bottom of the screen. Click or press Esc to take it back."
     }
 
     func importMemes() {

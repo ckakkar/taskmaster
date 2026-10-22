@@ -25,7 +25,6 @@ final class PetScene: SKScene {
     private let animation = PetAnimation()
     private var memeCard: MemeCardNode?
     private let ribbon = SKShapeNode()
-    private let grapple = SKShapeNode()
     private let focusLabel = SKLabelNode()
     private let focusTrack = SKShapeNode(rectOf: CGSize(width: 58, height: 3), cornerRadius: 1.5)
     private let focusFill = SKShapeNode(rectOf: CGSize(width: 58, height: 3), cornerRadius: 1.5)
@@ -47,11 +46,6 @@ final class PetScene: SKScene {
         ribbon.zPosition = 2.5
         ribbon.isHidden = true
         addChild(ribbon)
-        grapple.strokeColor = NSColor(calibratedRed: 0.82, green: 0.70, blue: 0.30, alpha: 0.9)
-        grapple.lineWidth = 2
-        grapple.zPosition = 2.8
-        grapple.isHidden = true
-        addChild(grapple)
         focusLabel.fontName = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium).fontName
         focusLabel.fontSize = 11
         focusLabel.fontColor = NSColor(calibratedRed: 0.30, green: 0.46, blue: 0.36, alpha: 1)
@@ -154,7 +148,7 @@ final class PetScene: SKScene {
         let nextPose = atlas.pose(for: engine, reducedMotion: reducedMotion)
         let frame = atlas.frame(for: nextPose)
         if pet.texture == nil || pose != nextPose || coat != preferences.coat {
-            if pet.texture != nil && !reducedMotion {
+            if pet.texture != nil && pose != nextPose && !reducedMotion {
                 crossfadePose()
             }
             pose = nextPose
@@ -163,7 +157,9 @@ final class PetScene: SKScene {
         }
         let scale =
             isPreview
-            ? min(225 / atlas.standingHeight, max(80, size.height - 66) / atlas.maximumFrameHeight)
+            ? min(
+                (engine.avatar == .toothless ? 150 : 225) / atlas.standingHeight,
+                max(80, size.height - 66) / atlas.maximumFrameHeight)
             : 155 / atlas.standingHeight * preferences.size
         pet.size = CGSize(
             width: Double(frame.width) * scale * frame.artworkScale,
@@ -172,8 +168,12 @@ final class PetScene: SKScene {
         if isPreview, engine.aerialRoute != nil {
             let x = (engine.position.x - engine.habitat.left) / max(1, engine.habitat.right - engine.habitat.left)
             let y = (engine.position.y - engine.habitat.floor) / max(1, engine.habitat.ceiling - engine.habitat.floor)
+            // Reserve the whole silhouette, including its gentle banking rotation.
+            let inset = pet.size.width * 0.53 + pet.size.height * 0.18 + 12
+            let top = pet.size.height * 1.03 + pet.size.width * 0.1 + 12
             ground = CGPoint(
-                x: 50 + x * max(1, size.width - 100), y: 36 + y * max(20, size.height - pet.size.height - 65))
+                x: inset + x * max(0, size.width - 2 * inset),
+                y: 36 + y * max(0, size.height - top - 36))
         }
         if isPreview, let route = engine.delivery {
             ground.x = previewPetX(route, petX: engine.position.x, petWidth: pet.size.width)
@@ -219,16 +219,6 @@ final class PetScene: SKScene {
             gaze: animation.attention.gaze, tilt: animation.attention.headTilt,
             time: time, moving: movement, reducedMotion: reducedMotion)
         wardrobe.isHidden = preferences.avatar != .miso || wardrobe.isHidden
-        grapple.isHidden = engine.avatar != .robin || engine.aerialRoute == nil
-        if let route = engine.aerialRoute, !grapple.isHidden {
-            let hand = frame.paw ?? SIMD2<Float>(0.60, 0.95)
-            let grip = pet.convert(
-                CGPoint(x: (Double(hand.x) - 0.5) * pet.size.width, y: Double(hand.y) * pet.size.height), to: self)
-            let path = CGMutablePath()
-            path.move(to: isPreview ? CGPoint(x: size.width / 2, y: size.height + 5) : local(route.anchor))
-            path.addLine(to: grip)
-            grapple.path = path
-        }
         childNode(withName: "poseTransition")?.position = point
         if let speech = childNode(withName: "speech") {
             speech.position = speechPosition(width: speech.frame.width, height: speech.frame.height)
@@ -398,9 +388,9 @@ final class PetScene: SKScene {
         previous.zRotation = pet.zRotation
         previous.zPosition = 3.1
         addChild(previous)
-        previous.run(.sequence([.fadeOut(withDuration: 0.18), .removeFromParent()]))
-        pet.alpha = 0
-        pet.run(.fadeIn(withDuration: 0.18), withKey: "poseReveal")
+        previous.alpha = 0.14
+        previous.run(.sequence([.fadeOut(withDuration: 0.08), .removeFromParent()]))
+        pet.alpha = 1
     }
 
     private func speechPosition(width: CGFloat, height: CGFloat) -> CGPoint {

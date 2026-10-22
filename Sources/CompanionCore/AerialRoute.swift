@@ -1,9 +1,8 @@
 import Foundation
 
 public struct AerialRoute: Equatable, Sendable {
-    public let start: Point
-    public let end: Point
-    public let anchor: Point
+    public internal(set) var start: Point
+    public internal(set) var end: Point
     public let duration: Double
     public internal(set) var age: Double = 0
     public let landing: Bool
