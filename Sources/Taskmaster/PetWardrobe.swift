@@ -2,6 +2,17 @@ import AppKit
 import SpriteKit
 import CompanionCore
 
+extension BubbleStyle {
+    var nsColor: NSColor {
+        switch self {
+        case .cream: NSColor(calibratedRed: 1, green: 0.98, blue: 0.94, alpha: 1)
+        case .sage: NSColor(calibratedRed: 0.89, green: 0.94, blue: 0.85, alpha: 1)
+        case .peach: NSColor(calibratedRed: 1, green: 0.88, blue: 0.81, alpha: 1)
+        case .midnight: NSColor(calibratedRed: 0.23, green: 0.27, blue: 0.30, alpha: 1)
+        }
+    }
+}
+
 extension AccessoryColor {
     var nsColor: NSColor {
         switch self {

@@ -209,10 +209,10 @@ struct CompanionRoom: View {
             }
             HStack(spacing: 9) {
                 RitualButton(title: "High five", symbol: "hand.raised.fingers.spread.fill", hint: "Offer a high five, then click the raised paw.") { model.perform(.offerHighFive) }
-                RitualButton(title: model.isFollowingCursor ? "Stay here" : "Follow me", symbol: "cursorarrow.motionlines", hint: "Miso follows your cursor along the desktop for a minute. Click Stay here to stop.") {
+                RitualButton(title: model.isFollowingCursor ? "Stay here" : "Follow me", symbol: "cursorarrow.motionlines", hint: "\(model.preferences.name) follows your cursor along the desktop for a minute. Click Stay here to stop.") {
                     model.perform(model.isFollowingCursor ? .stopFollowing : .followCursor)
                 }
-                RitualButton(title: "Find a snack", symbol: "sparkle.magnifyingglass", hint: "Watch Miso find and eat a little biscuit.") { model.perform(.findTreat) }
+                RitualButton(title: "Find a snack", symbol: "sparkle.magnifyingglass", hint: "Watch \(model.preferences.name) find and eat a little biscuit.") { model.perform(.findTreat) }
             }
         }
     }

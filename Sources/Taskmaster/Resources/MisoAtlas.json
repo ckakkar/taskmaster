@@ -11,5 +11,12 @@
     { "x": 0, "y": 817, "width": 435, "height": 437 },
     { "x": 435, "y": 807, "width": 439, "height": 447, "eyes": [{"x":720,"y":1059,"radius":15},{"x":774,"y":1042,"radius":13}] },
     { "x": 874, "y": 846, "width": 380, "height": 408, "eyes": [{"x":1081,"y":964,"radius":16},{"x":1148,"y":972,"radius":15}] }
-  ]
+  ],
+  "highFive": {
+    "sourceWidth": 1254,
+    "sourceHeight": 1254,
+    "eyes": [{"x":704,"y":430,"radius":37},{"x":849,"y":369,"radius":32}],
+    "paw": {"x":1090,"y":390},
+    "relativeScale": 1.08
+  }
 }

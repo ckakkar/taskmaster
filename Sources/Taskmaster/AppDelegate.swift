@@ -12,20 +12,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
             let atlas = try PetAtlas()
-            if CommandLine.arguments.contains("--self-check") {
-                let sizes = PetPose.allCases.map { pose in
-                    let frame = atlas.frame(for: pose)
-                    precondition(frame.width > 0 && frame.height > 0)
-                    precondition(frame.eyes.allSatisfy { eye in
-                        (0...1).contains(eye.center.x) && (0...1).contains(eye.center.y) && eye.radius > 0
-                    }, "Eye landmarks must remain inside their trimmed character frame.")
-                    return "\(pose): \(frame.width)×\(frame.height), \(frame.eyes.count) animated eyes"
-                }
-                print("Taskmaster self-check passed: all \(PetPose.allCases.count) transparent character frames loaded.")
-                sizes.forEach { print($0) }
-                NSApp.terminate(nil)
-                return
-            }
             let model = AppModel(atlas: atlas)
             self.model = model
             model.openRoom = { [weak self] in self?.showRoom() }
@@ -100,7 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         if customization == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 860, height: 730),
                                   styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
-            window.title = "Make Miso yours"
+            window.title = "Make \(model.preferences.name) yours"
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.isReleasedWhenClosed = false
@@ -110,6 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             customization = window
         }
         NSApp.activate(ignoringOtherApps: true)
+        customization?.title = "Make \(model.preferences.name) yours"
         customization?.makeKeyAndOrderFront(nil)
     }
 
@@ -120,7 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         heading.isEnabled = false
         menu.addItem(heading)
         add("Open companion room…", action: #selector(showRoom), to: menu, symbol: "house")
-        add("Make Miso yours…", action: #selector(customizeVoice), to: menu, symbol: "slider.horizontal.3")
+        add("Customize companion…", action: #selector(customizeVoice), to: menu, symbol: "slider.horizontal.3")
         add(model.focusActive ? "End quiet focus" : "Focus together · \(model.preferences.focusMinutes) min", action: #selector(toggleFocus), to: menu, symbol: "leaf")
         add(model.deliveryPhase == nil ? "Bring me a meme" : "Put the meme away", action: #selector(deliverMeme), to: menu, symbol: "photo.on.rectangle")
         menu.addItem(.separator())
@@ -168,7 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let root = NSMenuItem()
         let appMenu = NSMenu(title: "Taskmaster")
         add("Companion room…", action: #selector(showRoom), to: appMenu, key: ",")
-        add("Make Miso yours…", action: #selector(customizeVoice), to: appMenu, key: ";")
+        add("Customize companion…", action: #selector(customizeVoice), to: appMenu, key: ";")
         appMenu.addItem(.separator())
         add("Quit Taskmaster", action: #selector(quit), to: appMenu, key: "q")
         root.submenu = appMenu

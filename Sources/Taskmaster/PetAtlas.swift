@@ -17,6 +17,15 @@ final class PetAtlas {
         let sourceWidth: Double
         let sourceHeight: Double
         let frames: [Region]
+        struct Gesture: Decodable {
+            struct Landmark: Decodable { let x: Double; let y: Double }
+            let sourceWidth: Double
+            let sourceHeight: Double
+            let eyes: [Eye]
+            let paw: Landmark
+            let relativeScale: Double
+        }
+        let highFive: Gesture
     }
     struct Frame {
         struct Eye {
@@ -100,18 +109,20 @@ final class PetAtlas {
             let data = Self.rgba(trimmed)
             let texture = SKTexture(cgImage: trimmed)
             texture.filteringMode = .linear
+            let metadata = layout.highFive
+            guard metadata.sourceWidth > 0, metadata.sourceHeight > 0,
+                  metadata.relativeScale > 0, metadata.eyes.count == 2 else { throw ArtError.invalidFrame }
             func landmark(_ x: Double, _ y: Double) -> SIMD2<Float> {
-                let px = x / 1254 * Double(image.width) - bounds.minX
-                let py = y / 1254 * Double(image.height) - bounds.minY
+                let px = x / metadata.sourceWidth * Double(image.width) - bounds.minX
+                let py = y / metadata.sourceHeight * Double(image.height) - bounds.minY
                 return SIMD2(Float(px / Double(trimmed.width)), Float(1 - py / Double(trimmed.height)))
             }
-            let eyes = [Frame.Eye(center: landmark(704, 430), radius: Float(37.0 / 1254 * Double(image.width))),
-                        Frame.Eye(center: landmark(849, 369), radius: Float(32.0 / 1254 * Double(image.width)))]
-            let artworkScale = Double(frames[.sitting]!.height) * 1.08 / Double(trimmed.height)
+            let eyes = metadata.eyes.map { Frame.Eye(center: landmark($0.x, $0.y), radius: Float($0.radius / metadata.sourceWidth * Double(image.width))) }
+            let artworkScale = Double(frames[.sitting]!.height) * metadata.relativeScale / Double(trimmed.height)
             frames[.highFive] = Frame(image: trimmed, texture: texture,
                 alpha: stride(from: 3, to: data.count, by: 4).map { data[$0] },
                 width: trimmed.width, height: trimmed.height, eyes: eyes,
-                artworkScale: artworkScale, paw: landmark(1090, 390))
+                artworkScale: artworkScale, paw: landmark(metadata.paw.x, metadata.paw.y))
         } else {
             throw ArtError.missingAtlas
         }

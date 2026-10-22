@@ -133,7 +133,7 @@ private struct MischiefEditor: View {
             }
             Divider()
             Toggle("Muddy little paws", isOn: $model.preferences.muddyPaws).font(.system(size: 14, weight: .medium))
-            Text("In Chaos, Miso leaves a trail wherever they walk. Pawprints fade on their own and never catch your clicks.")
+            Text("In Chaos, \(model.preferences.name) leaves a trail wherever they walk. Pawprints fade on their own and never catch your clicks.")
                 .font(.system(size: 12)).foregroundStyle(Palette.secondary)
             setting("How long the evidence stays", value: "\(Int(model.preferences.pawprintSeconds)) seconds") {
                 Slider(value: $model.preferences.pawprintSeconds, in: 8...90, step: 1).accessibilityLabel("Pawprint lifetime")
@@ -143,7 +143,7 @@ private struct MischiefEditor: View {
                 Button("Wipe pawprints") { model.wipePawprints() }
             }.controlSize(.small)
             Divider()
-            Toggle("Let Miso borrow my cursor", isOn: $model.preferences.cursorHeists).font(.system(size: 14, weight: .medium))
+            Toggle("Let \(model.preferences.name) borrow my cursor", isOn: $model.preferences.cursorHeists).font(.system(size: 14, weight: .medium))
             Text("Chaos only. A nearby pointer may get snatched for a tiny getaway, lasting at most 1½ seconds. Click, press Esc, or pull the mouse away to end the game immediately.")
                 .font(.system(size: 12)).foregroundStyle(Palette.secondary).fixedSize(horizontal: false, vertical: true)
             Text("Heists take a long breather between attempts. They stay off during focus, naps, full-screen presentations and Reduce Motion.")
@@ -183,7 +183,7 @@ private struct VoiceEditor: View {
                     Button("Add cozy lines") { model.addQuipPack(chaotic: false) }
                     Button("Add chaotic lines") { model.addQuipPack(chaotic: true) }
                 }.controlSize(.small)
-                Toggle("Mix in Miso’s original sayings", isOn: $model.preferences.includeBuiltInQuips).font(.system(size: 12))
+                Toggle("Mix in \(model.preferences.name)’s original sayings", isOn: $model.preferences.includeBuiltInQuips).font(.system(size: 12))
             }
             setting("How talkative?", value: model.preferences.chatter == 0 ? "Silent" : model.preferences.chatter < 0.5 ? "Occasional" : "Chatty") {
                 Slider(value: $model.preferences.chatter, in: 0...1).accessibilityLabel("Chatter level")
@@ -206,7 +206,7 @@ private struct VoiceEditor: View {
                         }.buttonStyle(.plain)
                     }
                 }
-                Text(model.preferences.chatter == 0 ? "Miso is enjoying some quiet." : model.lastQuip)
+                Text(model.preferences.chatter == 0 ? "\(model.preferences.name) is enjoying some quiet." : model.lastQuip)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(model.preferences.bubbleStyle == .midnight ? Color.white : Palette.ink)
                     .padding(16).frame(maxWidth: .infinity, minHeight: 65)
@@ -224,10 +224,11 @@ private struct MemeStash: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            title("Little deliveries. Big energy.", subtitle: "Miso fetches a card from off-screen, leaves it for you, then takes it home.")
+            title("Little deliveries. Big energy.", subtitle: "\(model.preferences.name) fetches a card from off-screen, leaves it for you, then takes it home.")
             HStack {
                 Button { model.importMemes() } label: { Label("Add images…", systemImage: "plus") }
                     .buttonStyle(.borderedProminent)
+                    .disabled(model.isImporting)
                 Spacer()
                 if let phase = model.deliveryPhase {
                     Text(phase.description).font(.system(size: 10)).foregroundStyle(Palette.secondary)
@@ -241,7 +242,7 @@ private struct MemeStash: View {
                 Button(model.isImporting ? "Adding…" : "Add link") { model.importImageLink() }
                     .disabled(model.imageLink.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isImporting)
             }
-            Text("Your images are copied into Miso’s stash. Original files stay untouched. Animated files use the first frame.")
+            Text("Your images are copied into \(model.preferences.name)’s stash. Original files stay untouched. Animated files use the first frame.")
                 .font(.system(size: 10)).foregroundStyle(Palette.secondary)
             if let message = model.libraryMessage {
                 Text(message).font(.system(size: 11)).foregroundStyle(Palette.orange)
@@ -269,7 +270,7 @@ private struct MemeStash: View {
                             Spacer()
                             Button { library.remove(item) } label: { Image(systemName: "trash").font(.system(size: 10)) }
                                 .buttonStyle(.plain).foregroundStyle(Palette.secondary)
-                                .help("Remove from Miso’s stash").disabled(model.deliveryPhase != nil)
+                                .help("Remove from \(model.preferences.name)’s stash").disabled(model.deliveryPhase != nil)
                         }
                     }
                     .padding(11)
@@ -286,10 +287,10 @@ private struct RhythmEditor: View {
     @ObservedObject var model: AppModel
     var body: some View {
         VStack(alignment: .leading, spacing: 23) {
-            title("Company that fits your day.", subtitle: "Give Miso a rhythm that feels welcome on your desktop.")
+            title("Company that fits your day.", subtitle: "Give \(model.preferences.name) a rhythm that feels welcome on your desktop.")
             VStack(alignment: .leading, spacing: 12) {
                 Text("Quiet focus").font(.system(size: 17, design: .serif))
-                Text("Miso settles nearby while you work. When time is up, you get a gentle stretch reminder.")
+                Text("\(model.preferences.name) settles nearby while you work. When time is up, you get a gentle stretch reminder.")
                     .font(.system(size: 12)).foregroundStyle(Palette.secondary)
                 HStack {
                     Text("Session length").font(.system(size: 12))
@@ -313,7 +314,7 @@ private struct RhythmEditor: View {
             }
             Divider()
             Toggle("Occasionally bring me a meme", isOn: $model.preferences.autoMemes).font(.system(size: 13, weight: .medium))
-            Text("Only enabled cards in your stash are used. Deliveries pause during focus, naps and when Miso is tucked away.")
+            Text("Only enabled cards in your stash are used. Deliveries pause during focus, naps and when \(model.preferences.name) is tucked away.")
                 .font(.system(size: 11)).foregroundStyle(Palette.secondary)
             setting("Time between deliveries", value: "\(Int(model.preferences.memeInterval / 60)) min") {
                 Slider(value: $model.preferences.memeInterval, in: 120...3_600, step: 60).accessibilityLabel("Meme delivery interval")
@@ -323,7 +324,7 @@ private struct RhythmEditor: View {
             }
             Divider()
             Toggle("Nap when I’ve been away", isOn: $model.preferences.quietWhenIdle)
-            Toggle("Show Miso on every desktop Space", isOn: $model.preferences.allSpaces)
+            Toggle("Show \(model.preferences.name) on every desktop Space", isOn: $model.preferences.allSpaces)
             Toggle("Little sound effects", isOn: $model.preferences.sound)
         }
     }
@@ -348,12 +349,5 @@ private func setting<Content: View>(_ title: String, value: String, @ViewBuilder
 }
 
 private extension BubbleStyle {
-    var color: Color {
-        switch self {
-        case .cream: Color(red: 1, green: 0.98, blue: 0.94)
-        case .sage: Color(red: 0.89, green: 0.94, blue: 0.85)
-        case .peach: Color(red: 1, green: 0.88, blue: 0.81)
-        case .midnight: Color(red: 0.23, green: 0.27, blue: 0.30)
-        }
-    }
+    var color: Color { Color(nsColor: nsColor) }
 }

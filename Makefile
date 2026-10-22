@@ -1,4 +1,4 @@
-.PHONY: build run check app dmg clean help
+.PHONY: build run check lint format app dmg clean help
 
 export CLANG_MODULE_CACHE_PATH := $(CURDIR)/.build/module-cache
 export SWIFTPM_MODULECACHE_OVERRIDE := $(CURDIR)/.build/module-cache
@@ -15,6 +15,13 @@ build:
 
 check:
 	./scripts/swift.sh test
+	.build/debug/Taskmaster --self-check
+
+lint:
+	xcrun swift-format lint --strict --recursive Sources Tests scripts/render-icon.swift Package.swift
+
+format:
+	xcrun swift-format format --in-place --recursive Sources Tests scripts/render-icon.swift Package.swift
 
 app:
 	./scripts/build-app.sh

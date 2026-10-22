@@ -497,12 +497,7 @@ final class PetScene: SKScene {
         label.verticalAlignmentMode = .center
         let pill = SKShapeNode(rectOf: CGSize(width: label.frame.width + 26, height: max(31, label.frame.height + 20)), cornerRadius: 15)
         pill.name = "speech"
-        switch bubbleStyle {
-        case .cream: pill.fillColor = NSColor(calibratedRed: 1, green: 0.98, blue: 0.94, alpha: 1)
-        case .sage: pill.fillColor = NSColor(calibratedRed: 0.89, green: 0.94, blue: 0.85, alpha: 1)
-        case .peach: pill.fillColor = NSColor(calibratedRed: 1, green: 0.88, blue: 0.81, alpha: 1)
-        case .midnight: pill.fillColor = NSColor(calibratedRed: 0.23, green: 0.27, blue: 0.30, alpha: 1)
-        }
+        pill.fillColor = bubbleStyle.nsColor
         pill.strokeColor = NSColor(calibratedWhite: 0.3, alpha: 0.12)
         pill.position = speechPosition(width: pill.frame.width, height: pill.frame.height)
         pill.zPosition = 9
