@@ -52,6 +52,7 @@ final class MemeLibrary: ObservableObject {
                 let backup = self.directory.appendingPathComponent("library-corrupt-\(UUID().uuidString).json")
                 try? FileManager.default.copyItem(at: indexURL, to: backup)
             }
+            save()
         }
     }
 
@@ -146,7 +147,7 @@ final class MemeLibrary: ObservableObject {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(items).write(to: indexURL, options: .atomic)
-        } catch { NSLog("Could not save Miso’s meme stash: %@", error.localizedDescription) }
+        } catch { NSLog("Could not save the companion’s meme stash: %@", error.localizedDescription) }
     }
 
     private static func starterImage(id: String) -> NSImage {
@@ -196,7 +197,7 @@ final class MemeLibrary: ObservableObject {
             switch self {
             case .tooLarge: "Choose an image smaller than 25 MB."
             case .notImage: "That file isn’t a supported image. Try PNG, JPEG, GIF or HEIC."
-            case .cannotSave: "Miso couldn’t save a copy of that image."
+            case .cannotSave: "Couldn’t save a copy of that image."
             case .invalidLink: "Paste a direct HTTPS link to an image."
             case .downloadFailed: "That image link didn’t load. Try another link or add the image from your Mac."
             case .stashFull: "The stash holds 100 images. Remove a card before adding another."

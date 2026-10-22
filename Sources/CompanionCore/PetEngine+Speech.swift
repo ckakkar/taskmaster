@@ -27,7 +27,7 @@ extension PetEngine {
             ? ["this is my desk now.", "urgent: more snacks.", "i have a tiny complaint.", "nothing to see here."]
             : [
                 "a little company for you.", "i brought you a good thought.", "small paws. big fan.",
-                "you can pet the panda.",
+                "a tiny high five, perhaps?",
             ]
         let index = Int(random.unit() * Double(notes.count)).clamped(to: 0...(notes.count - 1))
         if let text = pickQuip(notes[index]) { events.append(.note(position, text)) }

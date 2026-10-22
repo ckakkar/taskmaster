@@ -134,7 +134,8 @@ private struct WardrobeEditor: View {
             HStack {
                 Text("A name of their own").font(.system(size: 12))
                 Spacer()
-                TextField("Miso", text: $model.preferences.name).textFieldStyle(.roundedBorder).frame(width: 155)
+                TextField(model.preferences.avatar.title, text: $model.preferences.name).textFieldStyle(.roundedBorder)
+                    .frame(width: 155)
                     .accessibilityLabel("Companion name")
             }
             if model.preferences.avatar == .miso {
@@ -219,7 +220,7 @@ private struct MischiefEditor: View {
             Toggle("Let \(model.preferences.name) borrow my cursor", isOn: $model.preferences.cursorHeists).font(
                 .system(size: 14, weight: .medium))
             Text(
-                "Chaos only. A nearby pointer may get snatched for a tiny getaway, lasting at most 1½ seconds. Click, press Esc, or pull the mouse away to end the game immediately."
+                "Chaos only. A nearby pointer may get snatched for a tiny getaway, lasting at most 1½ seconds. Click or press Esc to end the game immediately."
             )
             .font(.system(size: 12)).foregroundStyle(Palette.secondary).fixedSize(horizontal: false, vertical: true)
             Text(

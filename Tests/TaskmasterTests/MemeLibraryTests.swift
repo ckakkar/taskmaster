@@ -42,6 +42,10 @@ private func imageFixture(in directory: URL) throws -> URL {
         try FileManager.default.contentsOfDirectory(atPath: directory.path).contains {
             $0.hasPrefix("library-corrupt-")
         })
+    _ = MemeLibrary(directory: root)
+    _ = MemeLibrary(directory: root)
+    let backups = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+    #expect(backups.filter { $0.hasPrefix("library-corrupt-") }.count == 1)
     recovered.setEnabled(item.id, false)
     let reopened = MemeLibrary(directory: root)
     #expect(reopened.items.first { $0.id == item.id }?.enabled == false)

@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             if !CommandLine.arguments.contains("--quiet") { showRoom() }
         } catch {
             let alert = NSAlert()
-            alert.messageText = "Miso couldn’t find its way home."
+            alert.messageText = "Your companion couldn’t find its way home."
             alert.informativeText = error.localizedDescription
             alert.alertStyle = .warning
             alert.runModal()
