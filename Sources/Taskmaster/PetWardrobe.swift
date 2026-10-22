@@ -1,6 +1,6 @@
 import AppKit
-import SpriteKit
 import CompanionCore
+import SpriteKit
 
 extension BubbleStyle {
     var nsColor: NSColor {
@@ -31,21 +31,23 @@ final class PetWardrobe: SKNode {
     private var currentStyle: AccessoryStyle?
     private var currentColor: AccessoryColor?
 
-    func update(frame: PetAtlas.Frame, petSize: CGSize, preferences: Preferences, gaze: Point,
-                tilt: Double, time: Double, moving: Double, reducedMotion: Bool) {
+    func update(
+        frame: PetAtlas.Frame, petSize: CGSize, preferences: Preferences, gaze: Point,
+        tilt: Double, time: Double, moving: Double, reducedMotion: Bool
+    ) {
         if currentStyle != preferences.accessory || currentColor != preferences.accessoryColor {
             currentStyle = preferences.accessory
             currentColor = preferences.accessoryColor
             rebuild(style: preferences.accessory, color: preferences.accessoryColor.nsColor)
         }
-        isHidden = preferences.accessory == .none
-        let head = frame.eyes.isEmpty ? SIMD2<Float>(0.64, 0.65)
-            : frame.eyes.map(\.center).reduce(.zero, +) / Float(frame.eyes.count)
-        position = CGPoint(x: (Double(head.x) - 0.5 - 0.065 + gaze.x * 0.012) * petSize.width,
-                           y: (Double(head.y) - 0.18 + gaze.y * 0.008) * petSize.height)
-        let scale = petSize.height / 230
+        isHidden = preferences.accessory == .none || frame.neck == nil
+        guard let neck = frame.neck else { return }
+        position = CGPoint(
+            x: (Double(neck.center.x) - 0.5 + gaze.x * 0.020) * petSize.width,
+            y: (Double(neck.center.y) + gaze.y * 0.013) * petSize.height)
+        let scale = Double(neck.width) * petSize.width / 48
         setScale(scale)
-        zRotation = reducedMotion ? 0 : tilt * 0.3 + sin(time * 5) * moving * 0.035
+        zRotation = neck.angle * .pi / 180 + (reducedMotion ? 0 : tilt * 0.55 + sin(time * 5) * moving * 0.025)
     }
 
     private func rebuild(style: AccessoryStyle, color: NSColor) {
@@ -56,6 +58,12 @@ final class PetWardrobe: SKNode {
             node.fillColor = fill
             node.strokeColor = fill.blended(withFraction: 0.28, of: .black) ?? fill
             node.lineWidth = 0.8
+            node.fillTexture = SKTexture(
+                image: NSImage(size: CGSize(width: 64, height: 64), flipped: false) { rect in
+                    NSGradient(colors: [.white, NSColor(white: 0.72, alpha: 1), NSColor(white: 0.94, alpha: 1)])?.draw(
+                        in: rect, angle: -70)
+                    return true
+                })
             node.isAntialiased = true
             addChild(node)
             return node
@@ -65,17 +73,27 @@ final class PetWardrobe: SKNode {
         case .bandana:
             path.move(to: CGPoint(x: -25, y: 4))
             path.addQuadCurve(to: CGPoint(x: 23, y: 7), control: CGPoint(x: 0, y: -3))
-            path.addLine(to: CGPoint(x: 8, y: -26))
-            path.addQuadCurve(to: CGPoint(x: -25, y: 4), control: CGPoint(x: -9, y: -19))
+            path.addQuadCurve(to: CGPoint(x: 6, y: -24), control: CGPoint(x: 18, y: -11))
+            path.addQuadCurve(to: CGPoint(x: -25, y: 4), control: CGPoint(x: -10, y: -17))
             _ = shape(path, fill: color)
             let seam = SKShapeNode()
             let seamPath = CGMutablePath()
-            seamPath.move(to: CGPoint(x: -17, y: 0)); seamPath.addLine(to: CGPoint(x: 7, y: -20)); seamPath.addLine(to: CGPoint(x: 17, y: 1))
-            seam.path = seamPath; seam.strokeColor = .white.withAlphaComponent(0.4); seam.lineWidth = 0.7
+            seamPath.move(to: CGPoint(x: -17, y: 0))
+            seamPath.addLine(to: CGPoint(x: 7, y: -20))
+            seamPath.addLine(to: CGPoint(x: 17, y: 1))
+            seam.path = seamPath
+            seam.strokeColor = .white.withAlphaComponent(0.4)
+            seam.lineWidth = 0.7
             addChild(seam)
-            let star = SKLabelNode(text: "✦")
-            star.fontSize = 9; star.fontColor = .white.withAlphaComponent(0.85)
-            star.position = CGPoint(x: 5, y: -13); addChild(star)
+            let fold = SKShapeNode()
+            let crease = CGMutablePath()
+            crease.move(to: CGPoint(x: -11, y: 2))
+            crease.addQuadCurve(to: CGPoint(x: 3, y: -16), control: CGPoint(x: 1, y: -5))
+            fold.path = crease
+            fold.strokeColor = color.blended(withFraction: 0.3, of: .black) ?? color
+            fold.lineWidth = 1.3
+            fold.alpha = 0.45
+            addChild(fold)
         case .bow:
             path.move(to: .zero)
             path.addCurve(to: CGPoint(x: -25, y: 11), control1: CGPoint(x: -8, y: 8), control2: CGPoint(x: -20, y: 15))
@@ -88,19 +106,28 @@ final class PetWardrobe: SKNode {
             _ = shape(path, fill: color)
             let knot = SKShapeNode(rectOf: CGSize(width: 9, height: 14), cornerRadius: 3)
             knot.fillColor = color.blended(withFraction: 0.15, of: .white) ?? color
-            knot.strokeColor = color; addChild(knot)
+            knot.strokeColor = color
+            addChild(knot)
         case .bell:
             let collar = SKShapeNode(rectOf: CGSize(width: 45, height: 7), cornerRadius: 3)
-            collar.fillColor = color; collar.strokeColor = .clear; addChild(collar)
+            collar.fillColor = color
+            collar.strokeColor = .clear
+            addChild(collar)
             let bell = SKShapeNode(circleOfRadius: 9)
             bell.fillColor = NSColor(calibratedRed: 0.94, green: 0.73, blue: 0.34, alpha: 1)
             bell.strokeColor = NSColor(calibratedRed: 0.62, green: 0.42, blue: 0.17, alpha: 1)
-            bell.position = CGPoint(x: 3, y: -11); addChild(bell)
+            bell.position = CGPoint(x: 3, y: -11)
+            addChild(bell)
             let hole = SKShapeNode(circleOfRadius: 2)
-            hole.fillColor = bell.strokeColor; hole.strokeColor = .clear; hole.position.y = -3; bell.addChild(hole)
+            hole.fillColor = bell.strokeColor
+            hole.strokeColor = .clear
+            hole.position.y = -3
+            bell.addChild(hole)
             let glint = SKShapeNode(ellipseOf: CGSize(width: 4, height: 2))
-            glint.fillColor = .white.withAlphaComponent(0.6); glint.strokeColor = .clear
-            glint.position = CGPoint(x: -2, y: 4); bell.addChild(glint)
+            glint.fillColor = .white.withAlphaComponent(0.6)
+            glint.strokeColor = .clear
+            glint.position = CGPoint(x: -2, y: 4)
+            bell.addChild(glint)
         case .none: break
         }
     }

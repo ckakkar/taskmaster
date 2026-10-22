@@ -1,6 +1,6 @@
 import AppKit
-import SpriteKit
 import CompanionCore
+import SpriteKit
 
 @MainActor
 final class PetScene: SKScene {
@@ -16,6 +16,7 @@ final class PetScene: SKScene {
     private let pawRing = SKShapeNode(circleOfRadius: 19)
     private var contactShadows: [SKShapeNode] = []
     private var pose: PetPose = .sitting
+    private var coat: CoatStyle = .cinnamon
     private var facingRight = true
     private var origin = CGPoint.zero
     private var isPreview = false
@@ -134,39 +135,49 @@ final class PetScene: SKScene {
         pawprintSeconds = preferences.pawprintSeconds
         printScale = isPreview ? 0.8 : preferences.size
         if !preferences.muddyPaws { clearFootprints() }
-        animation.setCoat(preferences.coat)
         let nextPose = atlas.pose(for: engine, reducedMotion: reducedMotion)
         let frame = atlas.frame(for: nextPose)
-        if pet.texture == nil || pose != nextPose {
+        if pet.texture == nil || pose != nextPose || coat != preferences.coat {
             if pet.texture != nil && !reducedMotion {
                 crossfadePose()
             }
             pose = nextPose
-            pet.texture = frame.texture
+            coat = preferences.coat
+            pet.texture = atlas.texture(for: nextPose, coat: coat)
         }
-        let scale = isPreview
+        let scale =
+            isPreview
             ? min(225 / atlas.standingHeight, max(80, size.height - 66) / atlas.maximumFrameHeight)
             : 155 / atlas.standingHeight * preferences.size
-        pet.size = CGSize(width: Double(frame.width) * scale * frame.artworkScale,
-                          height: Double(frame.height) * scale * frame.artworkScale)
+        pet.size = CGSize(
+            width: Double(frame.width) * scale * frame.artworkScale,
+            height: Double(frame.height) * scale * frame.artworkScale)
         var ground = isPreview ? CGPoint(x: size.width * 0.5, y: 36) : local(engine.position)
-        if isPreview, let route = engine.delivery { ground.x = previewPetX(route, petX: engine.position.x, petWidth: pet.size.width) }
+        if isPreview, let route = engine.delivery {
+            ground.x = previewPetX(route, petX: engine.position.x, petWidth: pet.size.width)
+        }
         let attentionTarget = engine.state == .sniffing ? Point(x: 0.2, y: -0.65) : cursorTarget(at: ground)
         let standing = atlas.frame(for: .standing)
-        let strideLength = Double(standing.width) * 155 / atlas.standingHeight * preferences.size * WalkCycle.strideRatio
-        animation.advance(target: attentionTarget, engine: engine, reducedMotion: reducedMotion, strideLength: strideLength)
+        let strideLength =
+            Double(standing.width) * 155 / atlas.standingHeight * preferences.size * WalkCycle.strideRatio
+        animation.advance(
+            target: attentionTarget, engine: engine, reducedMotion: reducedMotion, strideLength: strideLength)
         facingRight = animation.motion.facingRight
         let time = animation.attention.time
         let movement = reducedMotion ? 0 : animation.motion.movement.value
         let gait = animation.motion.stride
         let breath = reducedMotion ? 0 : sin(time * (engine.state == .sleeping ? 1.3 : 2.1))
         let squash = reducedMotion ? 0 : animation.motion.squash.value
-        pet.xScale = (facingRight || isPreview ? 1 : -1)
+        pet.xScale =
+            (facingRight || isPreview ? 1 : -1)
             * (1 - breath * 0.006 * (1 - movement) - squash * 0.55) * (isPreview ? 1 : animation.motion.turnWidth)
         pet.yScale = 1 + breath * (engine.state == .sleeping ? 0.025 : 0.012) + squash
-        pet.zRotation = reducedMotion ? 0 : (engine.state == .carried
-            ? sin(time * 5) * 0.025 + animation.motion.lean.value
-            : (sin(time * 1.4) * 0.004 + animation.attention.headTilt * 0.35) * (1 - movement))
+        pet.zRotation =
+            reducedMotion
+            ? 0
+            : (engine.state == .carried
+                ? sin(time * 5) * 0.025 + animation.motion.lean.value
+                : (sin(time * 1.4) * 0.004 + animation.attention.headTilt * 0.35) * (1 - movement))
         var point = ground
         if engine.state == .happy && !reducedMotion {
             point.y += abs(sin(engine.stateAge * 7)) * exp(-engine.stateAge * 1.6) * 12
@@ -174,9 +185,10 @@ final class PetScene: SKScene {
         pet.position = point
         petLocation = point
         animation.update(sprite: pet, frame: frame, engine: engine, reducedMotion: reducedMotion)
-        wardrobe.update(frame: frame, petSize: pet.size, preferences: preferences,
-                        gaze: animation.attention.gaze, tilt: animation.attention.headTilt,
-                        time: time, moving: movement, reducedMotion: reducedMotion)
+        wardrobe.update(
+            frame: frame, petSize: pet.size, preferences: preferences,
+            gaze: animation.attention.gaze, tilt: animation.attention.headTilt,
+            time: time, moving: movement, reducedMotion: reducedMotion)
         childNode(withName: "poseTransition")?.position = point
         if let speech = childNode(withName: "speech") {
             speech.position = speechPosition(width: speech.frame.width, height: speech.frame.height)
@@ -200,7 +212,8 @@ final class PetScene: SKScene {
         nameLabel.text = preferences.name
         nameLabel.position = CGPoint(x: point.x, y: point.y - 20)
         nameLabel.isHidden = isPreview || !preferences.showName
-        sleepLabel.position = CGPoint(x: point.x + pet.size.width * 0.25, y: point.y + pet.size.height + 15 + breath * 3)
+        sleepLabel.position = CGPoint(
+            x: point.x + pet.size.width * 0.25, y: point.y + pet.size.height + 15 + breath * 3)
         sleepLabel.isHidden = engine.state != .sleeping
         if let toy = engine.toy {
             ball.isHidden = false
@@ -218,14 +231,18 @@ final class PetScene: SKScene {
         }
         snack.isHidden = engine.snack == nil
         if let treat = engine.snack {
-            snack.position = isPreview ? CGPoint(x: point.x + (treat.position.x - engine.position.x).clamped(to: -155...155), y: 43)
+            snack.position =
+                isPreview
+                ? CGPoint(x: point.x + (treat.position.x - engine.position.x).clamped(to: -155...155), y: 43)
                 : local(treat.position)
             snack.zRotation = sin(time * 2) * 0.06
         }
         pawRing.isHidden = engine.state != .highFive
         if let paw = frame.paw, !pawRing.isHidden {
-            pawRing.position = pet.convert(CGPoint(x: (Double(paw.x) - 0.5) * pet.size.width,
-                                                   y: Double(paw.y) * pet.size.height), to: self)
+            pawRing.position = pet.convert(
+                CGPoint(
+                    x: (Double(paw.x) - 0.5) * pet.size.width,
+                    y: Double(paw.y) * pet.size.height), to: self)
             pawRing.setScale(reducedMotion ? 1 : 1 + sin(time * 3) * 0.08)
             pawRing.alpha = reducedMotion ? 0.7 : 0.55 + sin(time * 3) * 0.2
         }
@@ -267,7 +284,8 @@ final class PetScene: SKScene {
             return
         }
         if memeCard?.memeID != route.memeID,
-           let library, let item = library.items.first(where: { $0.id == route.memeID }) {
+            let library, let item = library.items.first(where: { $0.id == route.memeID })
+        {
             memeCard?.removeFromParent()
             let card = MemeCardNode(item: item, image: library.image(for: item))
             card.setScale(isPreview ? 0.62 : 1)
@@ -277,13 +295,19 @@ final class PetScene: SKScene {
         guard let card = memeCard else { return }
         card.isHidden = !route.showsCard
         if isPreview {
-            card.position = CGPoint(x: route.isCarrying ? point.x - route.carryDirection * 145 : size.width / 2 - route.entryDirection * 55, y: 40)
-        } else { card.position = local(route.cardPosition) }
+            card.position = CGPoint(
+                x: route.isCarrying ? point.x - route.carryDirection * 145 : size.width / 2 - route.entryDirection * 55,
+                y: 40)
+        } else {
+            card.position = local(route.cardPosition)
+        }
         card.zRotation = reducedMotion ? 0 : route.isCarrying ? sin(animation.motion.stride) * 0.018 : -0.025
         ribbon.isHidden = !route.isCarrying
         if route.isCarrying {
-            let start = CGPoint(x: point.x - route.carryDirection * pet.size.width * 0.27, y: point.y + pet.size.height * 0.5)
-            let end = CGPoint(x: card.position.x + route.carryDirection * 133 * card.xScale, y: card.position.y + 120 * card.yScale)
+            let start = CGPoint(
+                x: point.x - route.carryDirection * pet.size.width * 0.27, y: point.y + pet.size.height * 0.5)
+            let end = CGPoint(
+                x: card.position.x + route.carryDirection * 133 * card.xScale, y: card.position.y + 120 * card.yScale)
             let path = CGMutablePath()
             path.move(to: start)
             path.addQuadCurve(to: end, control: CGPoint(x: (start.x + end.x) / 2, y: min(start.y, end.y) - 8))
@@ -302,7 +326,8 @@ final class PetScene: SKScene {
         let inView = view.convert(inWindow, from: nil)
         guard view.bounds.contains(inView) else { return nil }
         let cursor = convertPoint(fromView: inView)
-        let head = CGPoint(x: point.x + pet.size.width * (pet.xScale > 0 ? 0.15 : -0.15), y: point.y + pet.size.height * 0.68)
+        let head = CGPoint(
+            x: point.x + pet.size.width * (pet.xScale > 0 ? 0.15 : -0.15), y: point.y + pet.size.height * 0.68)
         guard hypot(cursor.x - head.x, cursor.y - head.y) < (isPreview ? 650 : 750) else { return nil }
         return Point(x: (cursor.x - head.x) / 145 * (pet.xScale > 0 ? 1 : -1), y: (cursor.y - head.y) / 145)
     }
@@ -326,8 +351,9 @@ final class PetScene: SKScene {
 
     private func speechPosition(width: Double, height: Double) -> CGPoint {
         let margin = min(size.width / 2, width / 2 + 8)
-        return CGPoint(x: min(max(margin, size.width - margin), max(margin, petLocation.x)),
-                       y: min(size.height - height / 2 - 8, petLocation.y + pet.size.height + height / 2 + 12))
+        return CGPoint(
+            x: min(max(margin, size.width - margin), max(margin, petLocation.x)),
+            y: min(size.height - height / 2 - 8, petLocation.y + pet.size.height + height / 2 + 12))
     }
 
     func hitPet(_ point: CGPoint) -> Bool {
@@ -361,12 +387,16 @@ final class PetScene: SKScene {
         for event in events {
             switch event {
             case .hearts:
-                particles(kind: "heart", color: NSColor(calibratedRed: 0.84, green: 0.43, blue: 0.39, alpha: 1), count: 6)
+                particles(
+                    kind: "heart", color: NSColor(calibratedRed: 0.84, green: 0.43, blue: 0.39, alpha: 1), count: 6)
             case .highFive:
-                particles(kind: "spark", color: NSColor(calibratedRed: 0.93, green: 0.67, blue: 0.28, alpha: 1), count: 10)
-                particles(kind: "heart", color: NSColor(calibratedRed: 0.84, green: 0.43, blue: 0.39, alpha: 1), count: 4)
+                particles(
+                    kind: "spark", color: NSColor(calibratedRed: 0.93, green: 0.67, blue: 0.28, alpha: 1), count: 10)
+                particles(
+                    kind: "heart", color: NSColor(calibratedRed: 0.84, green: 0.43, blue: 0.39, alpha: 1), count: 4)
             case .crumbs:
-                particles(kind: "crumb", color: NSColor(calibratedRed: 0.77, green: 0.54, blue: 0.23, alpha: 1), count: 9)
+                particles(
+                    kind: "crumb", color: NSColor(calibratedRed: 0.77, green: 0.54, blue: 0.23, alpha: 1), count: 9)
             case .landing(_, let speed):
                 if !reducedMotion && speed > 80 {
                     animation.land(speed: speed)
@@ -380,9 +410,11 @@ final class PetScene: SKScene {
             case .speech(let text):
                 speech(text)
             case .toyHit:
-                particles(kind: "spark", color: NSColor(calibratedRed: 0.89, green: 0.68, blue: 0.34, alpha: 1), count: 3)
+                particles(
+                    kind: "spark", color: NSColor(calibratedRed: 0.89, green: 0.68, blue: 0.34, alpha: 1), count: 3)
             case .cursorCaught:
-                particles(kind: "spark", color: NSColor(calibratedRed: 0.93, green: 0.67, blue: 0.28, alpha: 1), count: 7)
+                particles(
+                    kind: "spark", color: NSColor(calibratedRed: 0.93, green: 0.67, blue: 0.28, alpha: 1), count: 7)
             }
         }
     }
@@ -407,19 +439,23 @@ final class PetScene: SKScene {
             node.fillColor = color
             node.name = "mote"
             node.strokeColor = .clear
-            node.position = CGPoint(x: petLocation.x + Double(index % 3 - 1) * 16, y: petLocation.y + pet.size.height * 0.7)
+            node.position = CGPoint(
+                x: petLocation.x + Double(index % 3 - 1) * 16, y: petLocation.y + pet.size.height * 0.7)
             node.zPosition = 8
             node.setScale(0.3)
             addChild(node)
             let spread = Double(index) / Double(max(1, count - 1)) * 90 - 45
-            node.run(.sequence([
-                .wait(forDuration: Double(index) * 0.07),
-                .group([
-                    .moveBy(x: spread, y: 45 + Double(index % 3) * 15, duration: 1.2),
-                    .sequence([.scale(to: 0.75, duration: 0.2), .wait(forDuration: 0.5), .fadeOut(withDuration: 0.5)]),
-                ]),
-                .removeFromParent(),
-            ]))
+            node.run(
+                .sequence([
+                    .wait(forDuration: Double(index) * 0.07),
+                    .group([
+                        .moveBy(x: spread, y: 45 + Double(index % 3) * 15, duration: 1.2),
+                        .sequence([
+                            .scale(to: 0.75, duration: 0.2), .wait(forDuration: 0.5), .fadeOut(withDuration: 0.5),
+                        ]),
+                    ]),
+                    .removeFromParent(),
+                ]))
         }
     }
 
@@ -447,11 +483,16 @@ final class PetScene: SKScene {
         for index in 0..<3 {
             let speck = SKShapeNode(circleOfRadius: index == 0 ? 1.1 : 0.6)
             speck.position = CGPoint(x: Double(index * 7 - 8), y: Double(index * 3 - 4))
-            speck.fillColor = pad.fillColor.withAlphaComponent(0.23); speck.strokeColor = .clear
+            speck.fillColor = pad.fillColor.withAlphaComponent(0.23)
+            speck.strokeColor = .clear
             mark.addChild(speck)
         }
         addChild(mark)
-        mark.run(.sequence([.wait(forDuration: pawprintSeconds * 0.55), .fadeOut(withDuration: pawprintSeconds * 0.45), .removeFromParent()]))
+        mark.run(
+            .sequence([
+                .wait(forDuration: pawprintSeconds * 0.55), .fadeOut(withDuration: pawprintSeconds * 0.45),
+                .removeFromParent(),
+            ]))
     }
 
     private func makeNote(_ text: String) {
@@ -471,7 +512,8 @@ final class PetScene: SKScene {
         card.lineWidth = 1
         card.zPosition = 5
         let candidateX = petLocation.x > size.width / 2 ? petLocation.x - 150 : petLocation.x + 150
-        card.position = CGPoint(x: min(max(120, size.width - 120), max(120, candidateX)), y: petLocation.y + height / 2 + 18)
+        card.position = CGPoint(
+            x: min(max(120, size.width - 120), max(120, candidateX)), y: petLocation.y + height / 2 + 18)
         card.zRotation = -0.055
         label.position.y = 7
         card.addChild(label)
@@ -483,7 +525,10 @@ final class PetScene: SKScene {
         card.addChild(signature)
         addChild(card)
         card.alpha = 0
-        card.run(.sequence([.fadeIn(withDuration: 0.3), .wait(forDuration: 12), .fadeOut(withDuration: 0.8), .removeFromParent()]))
+        card.run(
+            .sequence([
+                .fadeIn(withDuration: 0.3), .wait(forDuration: 12), .fadeOut(withDuration: 0.8), .removeFromParent(),
+            ]))
     }
 
     private func speech(_ text: String) {
@@ -491,11 +536,15 @@ final class PetScene: SKScene {
         let label = SKLabelNode(text: text)
         label.fontName = NSFont.systemFont(ofSize: 12, weight: .semibold).fontName
         label.fontSize = 12
-        label.fontColor = bubbleStyle == .midnight ? NSColor(calibratedRed: 0.98, green: 0.95, blue: 0.87, alpha: 1) : NSColor(calibratedRed: 0.35, green: 0.27, blue: 0.23, alpha: 1)
+        label.fontColor =
+            bubbleStyle == .midnight
+            ? NSColor(calibratedRed: 0.98, green: 0.95, blue: 0.87, alpha: 1)
+            : NSColor(calibratedRed: 0.35, green: 0.27, blue: 0.23, alpha: 1)
         label.preferredMaxLayoutWidth = isPreview ? 250 : 290
         label.numberOfLines = 0
         label.verticalAlignmentMode = .center
-        let pill = SKShapeNode(rectOf: CGSize(width: label.frame.width + 26, height: max(31, label.frame.height + 20)), cornerRadius: 15)
+        let pill = SKShapeNode(
+            rectOf: CGSize(width: label.frame.width + 26, height: max(31, label.frame.height + 20)), cornerRadius: 15)
         pill.name = "speech"
         pill.fillColor = bubbleStyle.nsColor
         pill.strokeColor = NSColor(calibratedWhite: 0.3, alpha: 0.12)
