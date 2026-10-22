@@ -20,7 +20,7 @@ public enum CoatPalette {
                 switch style {
                 case .cinnamon: [r, g, b]
                 case .honey: [light * 1.5, light * 1.12, light * 0.48]
-                case .dusk: [light * 1.15, light * 0.76, light * 1.62]
+                case .dusk: [light * 0.95, light * 0.72, light * 1.22]
                 case .moonlit: [light * 1.14, light * 1.20, light * 1.29]
                 }
             for (channel, original) in [r, g, b].enumerated() {
