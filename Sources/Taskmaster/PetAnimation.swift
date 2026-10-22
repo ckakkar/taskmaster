@@ -14,7 +14,12 @@ final class PetAnimation {
     private let eyeB = SKUniform(name: "u_eyeB", vectorFloat2: .zero)
     private let radii = SKUniform(name: "u_radii", vectorFloat2: .zero)
     private let pixels = SKUniform(name: "u_pixels", vectorFloat2: SIMD2(1, 1))
-    lazy var shader = SKShader(source: Self.eyeShader, uniforms: [gaze, blink, eyeA, eyeB, radii, pixels])
+    private let coat = SKUniform(name: "u_coat", float: 0)
+    lazy var shader = SKShader(source: Self.eyeShader, uniforms: [gaze, blink, eyeA, eyeB, radii, pixels, coat])
+
+    func setCoat(_ style: CoatStyle) {
+        coat.floatValue = Float(CoatStyle.allCases.firstIndex(of: style) ?? 0)
+    }
 
     func advance(target: Point?, engine: PetEngine, reducedMotion: Bool, strideLength: Double) {
         let now = CACurrentMediaTime()
@@ -33,7 +38,7 @@ final class PetAnimation {
         eyeA.vectorFloat2Value = frame.eyes.first?.center ?? .zero
         eyeB.vectorFloat2Value = frame.eyes.dropFirst().first?.center ?? .zero
         radii.vectorFloat2Value = SIMD2(frame.eyes.first?.radius ?? 0, frame.eyes.dropFirst().first?.radius ?? 0)
-        sprite.shader = frame.eyes.isEmpty ? nil : shader
+        sprite.shader = shader
         guard !reducedMotion else { sprite.warpGeometry = nil; return }
 
         let head = frame.eyes.isEmpty ? SIMD2<Float>(0.64, 0.67)
@@ -115,6 +120,15 @@ final class PetAnimation {
         vec4 color = texture2D(u_texture, uv);
         color = animateEye(color, uv, u_eyeA, u_radii.x);
         color = animateEye(color, uv, u_eyeB, u_radii.y);
+        // Recolor warm fur gently, retaining the cream muzzle and dark markings.
+        float fur = smoothstep(0.04, 0.22, color.r - color.b) * smoothstep(0.12, 0.4, color.r);
+        vec3 honey = color.rgb * vec3(1.08, 1.20, 0.94);
+        vec3 dusk = color.rgb * vec3(0.83, 0.91, 1.20);
+        float gray = dot(color.rgb, vec3(0.30, 0.59, 0.11));
+        vec3 moonlit = mix(color.rgb, vec3(gray) * vec3(1.02, 1.05, 1.12), 0.75);
+        if (u_coat > 0.5 && u_coat < 1.5) color.rgb = mix(color.rgb, honey, fur);
+        else if (u_coat < 2.5 && u_coat > 1.5) color.rgb = mix(color.rgb, dusk, fur);
+        else if (u_coat > 2.5) color.rgb = mix(color.rgb, moonlit, fur);
         gl_FragColor = color * v_color_mix.a;
     }
     """

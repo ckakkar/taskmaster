@@ -3,7 +3,7 @@ import SpriteKit
 import SwiftUI
 import CompanionCore
 
-private enum Palette {
+enum Palette {
     static let paper = Color(red: 0.985, green: 0.973, blue: 0.95)
     static let ink = Color(red: 0.23, green: 0.20, blue: 0.17)
     static let secondary = Color(red: 0.55, green: 0.49, blue: 0.43)
@@ -49,6 +49,12 @@ struct CompanionRoom: View {
                     .font(.system(size: 11, weight: .medium))
             }
             .foregroundStyle(Palette.secondary)
+            Button { model.customize(.look) } label: {
+                Label("Make it yours", systemImage: "sparkles")
+                    .font(.system(size: 11, weight: .medium)).padding(.horizontal, 11).padding(.vertical, 8)
+                    .background(.white.opacity(0.7), in: Capsule())
+                    .overlay(Capsule().stroke(Palette.line.opacity(0.7), lineWidth: 0.7))
+            }.buttonStyle(.plain)
             Button { model.showPreferences.toggle() } label: {
                 Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 15))
@@ -101,7 +107,7 @@ struct CompanionRoom: View {
                 HStack(spacing: 5) {
                     Image(systemName: model.state == .sleeping ? "moon.zzz.fill" : "heart.fill")
                         .font(.system(size: 9))
-                    Text(model.isPaused ? "Just being here" : model.isFollowingCursor ? "Following your little arrow" : model.state.description)
+                    Text(model.isPaused ? "Just being here" : model.focusActive ? "Quiet company · \(model.focusLabel)" : model.isStealingCursor ? "A very tiny crime in progress" : model.deliveryPhase?.description ?? (model.isFollowingCursor ? "Following your little arrow" : model.state.description))
                         .font(.system(size: 10, weight: .medium))
                 }
                 .foregroundStyle(Palette.secondary)
@@ -119,6 +125,32 @@ struct CompanionRoom: View {
             }
             .foregroundStyle(Palette.secondary)
             .frame(maxWidth: .infinity)
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: model.focusActive ? "leaf.fill" : "leaf").foregroundStyle(Palette.green)
+                    Text(model.focusActive ? "Quiet company · \(model.focusLabel)" : "A little focus, together.")
+                        .font(.system(size: 13, weight: .medium, design: .serif))
+                    Spacer()
+                    Button(model.focusActive ? "End" : "\(model.preferences.focusMinutes) min") {
+                        if model.focusActive { model.stopFocus() } else { model.startFocus() }
+                    }.controlSize(.small)
+                }
+                if model.focusActive {
+                    ProgressView(value: model.focusProgress).tint(Palette.green)
+                } else {
+                    HStack {
+                        Button { if model.deliveryPhase == nil { model.bringMeme() } else { model.putMemeAway() } } label: {
+                            Label(model.deliveryPhase == nil ? "Bring a meme" : "Send it back", systemImage: "photo.on.rectangle")
+                        }
+                        Spacer()
+                        Button("My meme stash") { model.customize(.memes) }
+                    }.font(.system(size: 10)).buttonStyle(.plain).foregroundStyle(Palette.secondary)
+                }
+            }
+            .padding(14)
+            .background(.white.opacity(0.55), in: RoundedRectangle(cornerRadius: 15))
+            .overlay(RoundedRectangle(cornerRadius: 15).stroke(Palette.line.opacity(0.6), lineWidth: 0.7))
         }
     }
 
@@ -339,8 +371,9 @@ private struct PreferencesPanel: View {
     }
 }
 
-private struct PetPreview: NSViewRepresentable {
+struct PetPreview: NSViewRepresentable {
     let model: AppModel
+    var wardrobe = false
 
     func makeNSView(context: Context) -> PreviewView {
         let view = PreviewView()
@@ -349,8 +382,9 @@ private struct PetPreview: NSViewRepresentable {
         view.preferredFramesPerSecond = 60
         view.ignoresSiblingOrder = true
         let scene = PetScene(size: CGSize(width: 360, height: 260), atlas: model.atlas, preview: true)
+        scene.library = model.library
         view.presentScene(scene)
-        model.previewScene = scene
+        if wardrobe { model.appearanceScene = scene } else { model.previewScene = scene }
         model.desktop.renderNow()
         return view
     }
@@ -386,6 +420,13 @@ private struct PetPreview: NSViewRepresentable {
         override func mouseExited(with event: NSEvent) { lastPointer = nil; NSCursor.arrow.set() }
         override func mouseDragged(with event: NSEvent) { mouseMoved(with: event) }
         override func mouseDown(with event: NSEvent) {
+            if let scene = scene as? PetScene, model?.deliveryPhase == .displaying {
+                let point = scene.convertPoint(fromView: convert(event.locationInWindow, from: nil))
+                if !scene.hitPet(point), let action = scene.memeAction(at: point) {
+                    if action == .putAway { model?.putMemeAway() } else { model?.keepMemeLonger() }
+                    return
+                }
+            }
             guard let scene = scene as? PetScene,
                   (scene.hitPet(scene.convertPoint(fromView: convert(event.locationInWindow, from: nil)))
                     || scene.hitPaw(scene.convertPoint(fromView: convert(event.locationInWindow, from: nil)))) else { return }

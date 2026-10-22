@@ -20,6 +20,9 @@ final class DesktopController: NSObject {
     private var lastTick = CACurrentMediaTime()
     private var presentationTick = 0
     private var suspended = false
+    private var lastWarp: CGPoint?
+    private var cursorHoldStarted: Double = 0
+    private var cursorPullDistance: Double = 0
     var isDragging = false
     var contextMenu: (() -> NSMenu)?
 
@@ -35,6 +38,7 @@ final class DesktopController: NSObject {
             backing: .buffered, defer: false
         )
         scene = PetScene(size: screen.frame.size, atlas: atlas)
+        scene.library = model.library
         canvas = PetInteractionView(frame: CGRect(origin: .zero, size: screen.frame.size))
         super.init()
         panel.title = "Miso · Taskmaster desktop companion"
@@ -72,7 +76,17 @@ final class DesktopController: NSObject {
     func applyPreferences() {
         engine.mischief = model.preferences.mischief
         engine.quietWhenIdle = model.preferences.quietWhenIdle
-        engine.changeHabitat(Self.habitat(for: screen, scale: model.preferences.size))
+        engine.customQuips = model.preferences.quipLines
+        engine.includeBuiltInQuips = model.preferences.includeBuiltInQuips
+        engine.chatter = model.focusActive ? 0 : model.preferences.chatter
+        engine.companionName = model.preferences.name
+        engine.allowsCursorHeists = model.preferences.cursorHeists
+            && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        engine.muddyPaws = model.preferences.muddyPaws
+        engine.visualScale = model.preferences.sanitized().size
+        if !engine.allowsCursorHeists || engine.mischief < 0.75 { engine.cancelCursorHeist() }
+        let habitat = Self.habitat(for: screen, scale: model.preferences.size)
+        if engine.habitat != habitat { engine.changeHabitat(habitat) }
         panel.collectionBehavior = model.preferences.allSpaces
             ? [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
             : [.moveToActiveSpace, .fullScreenAuxiliary, .ignoresCycle]
@@ -96,10 +110,11 @@ final class DesktopController: NSObject {
     func renderNow() {
         let reduced = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         scene.render(engine: engine, preferences: model.preferences, origin: screen.frame.origin, reducedMotion: reduced)
-        model.previewScene?.render(engine: engine, preferences: model.preferences, origin: .zero, reducedMotion: reduced)
+        for preview in model.previews { preview.render(engine: engine, preferences: model.preferences, origin: .zero, reducedMotion: reduced) }
         let events = engine.drainEvents()
+        model.observe(events)
         scene.handle(events)
-        model.previewScene?.handle(events)
+        model.previews.forEach { $0.handle(events) }
         model.syncPresentation()
     }
 
@@ -117,6 +132,13 @@ final class DesktopController: NSObject {
         model.perform(.comeHere(pointer.x))
     }
 
+    func deliver(memeID: String) {
+        scene.dismissNote()
+        engine.beginDelivery(memeID: memeID, screenLeft: screen.frame.minX, screenRight: screen.frame.maxX,
+                             staySeconds: model.preferences.memeStaySeconds)
+        renderNow()
+    }
+
     func showContextMenu(event: NSEvent, view: NSView) {
         guard let menu = contextMenu?() else { return }
         NSMenu.popUpContextMenu(menu, with: event, for: view)
@@ -127,8 +149,11 @@ final class DesktopController: NSObject {
         let dt = min(0.1, now - lastTick)
         lastTick = now
         guard !suspended else { return }
+        if presentationTick % 12 == 0 { model.updateServices() }
         let pointer = NSEvent.mouseLocation
         let localPoint = CGPoint(x: pointer.x - screen.frame.minX, y: pointer.y - screen.frame.minY)
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { engine.cancelCursorHeist() }
+        updateCursorHold(pointer: pointer, now: now)
         if model.isVisible {
             let anyInput = CGEventType(rawValue: UInt32.max)!
             let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: anyInput)
@@ -141,17 +166,50 @@ final class DesktopController: NSObject {
                 reducedMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
             )
         }
-        if let preview = model.previewScene, preview.view?.window?.isVisible == true {
+        for preview in model.previews where preview.view?.window?.isVisible == true {
             preview.render(engine: engine, preferences: model.preferences, origin: .zero,
                            reducedMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
         }
         let events = engine.drainEvents()
+        model.observe(events)
         scene.handle(events)
-        model.previewScene?.handle(events)
-        let interactive = scene.hitPet(localPoint) || scene.hitPaw(localPoint) || scene.hitBall(localPoint) || scene.hitNote(localPoint)
+        model.previews.forEach { $0.handle(events) }
+        let cardHit = engine.delivery?.phase == .displaying && scene.memeAction(at: localPoint) != nil
+        let interactive = cardHit || scene.hitPet(localPoint) || scene.hitPaw(localPoint) || scene.hitBall(localPoint) || scene.hitNote(localPoint)
         panel.ignoresMouseEvents = !(isDragging || interactive)
         presentationTick += 1
         if presentationTick % 12 == 0 { model.syncPresentation() }
+    }
+
+    private func updateCursorHold(pointer: CGPoint, now: Double) {
+        guard engine.cursorHeist?.isHoldingCursor == true, model.isVisible, !model.isPaused,
+              !engine.isFocusing, !suspended, !isDragging,
+              !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+            if lastWarp != nil { engine.cancelCursorHeist() }
+            lastWarp = nil
+            cursorPullDistance = 0
+            return
+        }
+        if lastWarp == nil { cursorHoldStarted = now }
+        if let lastWarp {
+            cursorPullDistance += max(0, hypot(pointer.x - lastWarp.x, pointer.y - lastWarp.y) - 1.5)
+        }
+        let clicked = CGEventSource.buttonState(.combinedSessionState, button: .left)
+            || CGEventSource.buttonState(.combinedSessionState, button: .right)
+            || CGEventSource.buttonState(.combinedSessionState, button: .center)
+        let escaped = CGEventSource.keyState(.combinedSessionState, key: 53)
+        guard !clicked, !escaped, cursorPullDistance < 22, now - cursorHoldStarted < 1.5,
+              NSApp.currentSystemPresentationOptions.isDisjoint(with: [.hideMenuBar, .hideDock]) else {
+            engine.cancelCursorHeist(); lastWarp = nil; cursorPullDistance = 0; return
+        }
+        let anchor = engine.cursorAnchor
+        let point = CGPoint(x: anchor.x, y: anchor.y)
+        let quartzPoint = CGPoint(x: point.x, y: (NSScreen.screens.first?.frame.maxY ?? screen.frame.maxY) - point.y)
+        if CGWarpMouseCursorPosition(quartzPoint) == .success { lastWarp = point }
+        else {
+            engine.cancelCursorHeist(); lastWarp = nil
+            model.chaosMessage = "This Mac didn’t allow the cursor game. Miso will stick to muddy paws."
+        }
     }
 
     private func move(to newScreen: NSScreen) {
@@ -207,6 +265,10 @@ final class PetInteractionView: SKView {
         wasDragged = false
         throwVelocity = .zero
         let point = driver.scene.convertPoint(fromView: convert(event.locationInWindow, from: nil))
+        if driver.engine.delivery?.phase == .displaying, !driver.scene.hitPet(point), let action = driver.scene.memeAction(at: point) {
+            if action == .putAway { driver.model.putMemeAway() } else { driver.model.keepMemeLonger() }
+            return
+        }
         if driver.scene.hitNote(point) { driver.scene.dismissNote(); return }
         if driver.scene.hitBall(point) {
             target = .ball

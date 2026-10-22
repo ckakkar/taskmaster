@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private var model: AppModel?
     private var statusItem: NSStatusItem?
     private var room: NSWindow?
+    private var customization: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -28,6 +29,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             let model = AppModel(atlas: atlas)
             self.model = model
             model.openRoom = { [weak self] in self?.showRoom() }
+            model.openCustomization = { [weak self] in self?.showCustomization() }
+            model.closeCustomization = { [weak self] in self?.model?.flushPreferences(); self?.customization?.close() }
             model.desktop.contextMenu = { [weak self] in self?.makeMenu() ?? NSMenu() }
             installApplicationMenu()
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -49,7 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         }
     }
 
-    func applicationWillTerminate(_ notification: Notification) { model?.desktop.stop() }
+    func applicationWillTerminate(_ notification: Notification) { model?.flushPreferences(); model?.desktop.stop() }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
@@ -92,6 +95,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         }
     }
 
+    @objc private func showCustomization() {
+        guard let model else { return }
+        if customization == nil {
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 860, height: 730),
+                                  styleMask: [.titled, .closable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
+            window.title = "Make Miso yours"
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
+            window.isReleasedWhenClosed = false
+            window.contentMinSize = NSSize(width: 820, height: 650)
+            window.contentView = NSHostingView(rootView: CustomizationView(model: model))
+            window.center()
+            customization = window
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        customization?.makeKeyAndOrderFront(nil)
+    }
+
     private func makeMenu() -> NSMenu {
         let menu = NSMenu()
         guard let model else { return menu }
@@ -99,6 +120,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         heading.isEnabled = false
         menu.addItem(heading)
         add("Open companion room…", action: #selector(showRoom), to: menu, symbol: "house")
+        add("Make Miso yours…", action: #selector(customizeVoice), to: menu, symbol: "slider.horizontal.3")
+        add(model.focusActive ? "End quiet focus" : "Focus together · \(model.preferences.focusMinutes) min", action: #selector(toggleFocus), to: menu, symbol: "leaf")
+        add(model.deliveryPhase == nil ? "Bring me a meme" : "Put the meme away", action: #selector(deliverMeme), to: menu, symbol: "photo.on.rectangle")
         menu.addItem(.separator())
         let mood = NSMenuItem(title: "Personality", action: nil, keyEquivalent: "")
         let moods = NSMenu()
@@ -122,6 +146,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         add("Find a hidden snack", action: #selector(findTreat), to: menu, symbol: "sparkle.magnifyingglass")
         add("Come to this screen", action: #selector(comeHere), to: menu, symbol: "arrow.down.to.line")
         add("Have a stretch", action: #selector(stretch), to: menu, symbol: "figure.flexibility")
+        add("Muddy zoomies", action: #selector(zoomies), to: menu, symbol: "hare")
+        add("Wipe pawprints", action: #selector(wipe), to: menu, symbol: "sparkles")
         menu.addItem(.separator())
         add(model.isPaused ? "Let’s wander" : "Settle down", action: #selector(pause), to: menu, symbol: model.isPaused ? "play" : "pause")
         add(model.isVisible ? "Tuck away" : "Bring back", action: #selector(toggleVisible), to: menu, symbol: model.isVisible ? "eye.slash" : "eye")
@@ -142,6 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let root = NSMenuItem()
         let appMenu = NSMenu(title: "Taskmaster")
         add("Companion room…", action: #selector(showRoom), to: appMenu, key: ",")
+        add("Make Miso yours…", action: #selector(customizeVoice), to: appMenu, key: ";")
         appMenu.addItem(.separator())
         add("Quit Taskmaster", action: #selector(quit), to: appMenu, key: "q")
         root.submenu = appMenu
@@ -160,6 +187,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
 
     @objc private func selectMood(_ item: NSMenuItem) { model?.select(Personality.allCases[item.tag]) }
+    @objc private func customizeVoice() { model?.customize(.look) }
+    @objc private func toggleFocus() { if model?.focusActive == true { model?.stopFocus() } else { model?.startFocus() } }
+    @objc private func deliverMeme() { if model?.deliveryPhase == nil { model?.bringMeme() } else { model?.putMemeAway() } }
     @objc private func treat() { model?.perform(.treat) }
     @objc private func pet() { model?.perform(.pet) }
     @objc private func play() { model?.perform(.play) }
@@ -173,6 +203,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     @objc private func findTreat() { model?.perform(.findTreat) }
     @objc private func comeHere() { model?.desktop.callToPointer() }
     @objc private func stretch() { model?.perform(.stretch) }
+    @objc private func zoomies() { model?.perform(.muddyZoomies) }
+    @objc private func wipe() { model?.wipePawprints() }
     @objc private func pause() { model?.isPaused.toggle() }
     @objc private func toggleVisible() { model?.isVisible.toggle() }
     @objc private func quit() { NSApp.terminate(nil) }

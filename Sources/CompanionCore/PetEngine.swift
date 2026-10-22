@@ -24,7 +24,8 @@ public enum PetState: String, CaseIterable, Sendable {
 
 public enum PetAction: Sendable {
     case pet, treat, play, nap, wake, comeHere(Double), surprise
-    case offerHighFive, followCursor, stopFollowing, findTreat, stretch
+    case offerHighFive, followCursor, stopFollowing, findTreat, stretch, saySomething, breakReminder
+    case muddyZoomies
 }
 
 public enum PetEvent: Sendable {
@@ -36,6 +37,7 @@ public enum PetEvent: Sendable {
     case speech(String)
     case toyHit(Point)
     case highFive(Point)
+    case cursorCaught(Point)
 }
 
 public struct Toy: Equatable, Sendable {
@@ -60,12 +62,26 @@ public struct PetEngine: Sendable {
     public private(set) var facingRight = false
     public private(set) var toy: Toy?
     public private(set) var snack: Snack?
+    public private(set) var delivery: MemeDelivery?
+    public private(set) var cursorHeist: CursorHeist?
+    public var allowsCursorHeists = false { didSet { if !allowsCursorHeists { cancelCursorHeist() } } }
+    public var muddyPaws = true
+    public var visualScale: Double = 1
+    public var cursorAnchor: Point {
+        Point(x: position.x + (facingRight ? 52 : -52) * visualScale,
+              y: position.y + 105 * visualScale)
+    }
     public var isFollowingCursor: Bool { elapsed < manualFollowUntil }
     public private(set) var interactionCount = 0
     public private(set) var affection: Double = 0.25
     public var mischief: Double = 0.25
-    public var isPaused = false
+    public var isPaused = false { didSet { if isPaused { cancelCursorHeist() } } }
     public var quietWhenIdle = true
+    public var isFocusing = false { didSet { if isFocusing { cancelCursorHeist() } } }
+    public var customQuips: [String] = []
+    public var includeBuiltInQuips = true
+    public var chatter: Double = 0.35
+    public var companionName = "Miso"
 
     private var random: RandomStream
     private var targetX: Double
@@ -73,7 +89,6 @@ public struct PetEngine: Sendable {
     private var releaseAt: Double = 0
     private var dragOffset: Point = .zero
     private var events: [PetEvent] = []
-    private var nextFootprint: Double = 0
     private var lastPrank: Double = -18
     private var lastToyHit: Double = -2
     private var isUserNap = false
@@ -84,6 +99,12 @@ public struct PetEngine: Sendable {
     private var strokeDistance: Double = 0
     private var lastStroke: Double = -2
     private var manualFollowUntil: Double = 0
+    private var nextChatter: Double = 75
+    private var previousQuip = ""
+    private var nextHeist: Double = 40
+    private var muddyUntil: Double = 0
+    private var footprintX: Double?
+    private var rightFoot = false
 
     public init(habitat: Habitat, seed: UInt64 = UInt64.random(in: 1...UInt64.max)) {
         self.habitat = habitat
@@ -94,6 +115,9 @@ public struct PetEngine: Sendable {
     }
 
     public mutating func changeHabitat(_ newHabitat: Habitat) {
+        cancelCursorHeist()
+        footprintX = nil
+        delivery = nil
         habitat = newHabitat
         targetX = targetX.clamped(to: habitat.left...habitat.right)
         if state != .carried {
@@ -124,6 +148,12 @@ public struct PetEngine: Sendable {
         }
         observeCursor(cursor, contact: cursorContact, dt: dt)
 
+        if !isFocusing, delivery == nil, chatter > 0, elapsed > nextChatter,
+           state == .sitting || state == .idle {
+            nextChatter = elapsed + random.value(in: 70...180) / max(0.2, chatter)
+            speak(["Just checking on my favorite human.", "Small steps count, too.", "I am supervising. Very professionally.", "A tiny pause is allowed."][Int(random.unit() * 4).clamped(to: 0...3)])
+        }
+
         if state == .carried { return }
         if state == .falling {
             velocity.y -= 1_350 * dt
@@ -143,6 +173,18 @@ public struct PetEngine: Sendable {
                 transition(to: .sitting, for: 5)
             }
             return
+        }
+        if isFocusing {
+            cancelCursorHeist()
+            if state == .happy && elapsed < releaseAt { return }
+            if state != .sitting { transition(to: .sitting, for: .infinity) }
+            return
+        }
+        if updateDelivery(dt) { return }
+        if !allowsCursorHeists || mischief < 0.75 { cancelCursorHeist() }
+        if updateCursorHeist(dt, cursor: cursor) { return }
+        if allowsCursorHeists, mischief >= 0.75, elapsed >= nextHeist, userIdle < 20, let cursor {
+            if beginCursorHeist(at: cursor) { return }
         }
         if state == .highFive || state == .stretching {
             if elapsed >= releaseAt { transition(to: .sitting, for: 5) }
@@ -172,7 +214,7 @@ public struct PetEngine: Sendable {
                 affection = min(1, affection + 0.07)
                 transition(to: .happy, for: 3.2)
                 events.append(.crumbs(position))
-                events.append(.speech("Found it. Mine now."))
+                speak("Found it. Mine now.")
             }
             return
         }
@@ -214,7 +256,7 @@ public struct PetEngine: Sendable {
                 velocity = .zero
                 transition(to: .sitting, for: random.value(in: 3...9))
             } else {
-                walk(toward: targetX, dt: dt, speed: 36 + 60 * mischief)
+                walk(toward: targetX, dt: dt, speed: elapsed < muddyUntil ? 155 : 36 + 60 * mischief)
             }
         } else if elapsed >= decisionAt {
             decide(cursor: cursor)
@@ -222,6 +264,17 @@ public struct PetEngine: Sendable {
     }
 
     public mutating func perform(_ action: PetAction) {
+        if case .saySomething = action {
+            interactionCount += 1
+            speak("Small paws. Big fan of you.")
+            return
+        }
+        let canKeepCard: Bool = switch action {
+        case .pet, .treat, .offerHighFive, .stretch, .saySomething: true
+        default: false
+        }
+        cancelCursorHeist()
+        if delivery?.phase != .displaying || !canKeepCard { cancelDelivery() }
         interactionCount += 1
         affection = min(1, affection + 0.055)
         isUserNap = false
@@ -237,11 +290,11 @@ public struct PetEngine: Sendable {
             let wasHighFive = state == .highFive
             transition(to: .happy, for: 2.8)
             events.append(wasHighFive ? .highFive(position) : .hearts(position))
-            if wasHighFive { events.append(.speech("We make a good team.")) }
+            if wasHighFive { speak("We make a good team.") }
         case .treat:
             transition(to: .happy, for: 4)
             events.append(.crumbs(position))
-            events.append(.speech(["For me?", "A very good day.", "Excellent snack."][interactionCount % 3]))
+            speak(["For me?", "A very good day.", "Excellent snack."][interactionCount % 3])
         case .play:
             let direction = position.x > (habitat.left + habitat.right) / 2 ? -1.0 : 1.0
             toy = Toy(
@@ -264,12 +317,12 @@ public struct PetEngine: Sendable {
         case .offerHighFive:
             toy = nil
             transition(to: .highFive, for: 10)
-            events.append(.speech("Your turn!"))
+            speak("Your turn!")
         case .followCursor:
             toy = nil
             manualFollowUntil = elapsed + 60
             transition(to: .sitting, for: 1)
-            events.append(.speech("Lead the way."))
+            speak("Lead the way.")
         case .stopFollowing:
             transition(to: .sitting, for: 6)
         case .findTreat:
@@ -278,10 +331,23 @@ public struct PetEngine: Sendable {
             let x = (position.x + direction * random.value(in: 160...330)).clamped(to: habitat.left...habitat.right)
             snack = Snack(position: Point(x: x, y: habitat.floor + 7))
             transition(to: .curious, for: 0.6)
-            events.append(.speech("I smell something good."))
+            speak("I smell something good.")
         case .stretch:
             toy = nil
             transition(to: .stretching, for: 3.2)
+        case .saySomething:
+            speak("Small paws. Big fan of you.")
+        case .breakReminder:
+            transition(to: .stretching, for: 3.2)
+            speak("A little break? Uncurl your shoulders. I’ll keep your place.")
+        case .muddyZoomies:
+            toy = nil
+            muddyUntil = elapsed + 12
+            lastPrank = elapsed
+            let middle = (habitat.left + habitat.right) / 2
+            targetX = position.x > middle ? habitat.left + 30 : habitat.right - 30
+            transition(to: .walking, for: 1)
+            speak("I have made several artistic decisions.")
         }
     }
 
@@ -294,10 +360,12 @@ public struct PetEngine: Sendable {
         strokeDistance = 0
         lastStroke = elapsed
         perform(.pet)
-        if interactionCount % 4 == 0 { events.append(.speech("That’s the spot.")) }
+        if interactionCount % 4 == 0 { speak("That’s the spot.") }
     }
 
     public mutating func beginDrag(at pointer: Point) {
+        cancelCursorHeist()
+        cancelDelivery()
         isUserNap = false
         manualFollowUntil = 0
         followingCursorUntil = 0
@@ -343,6 +411,171 @@ public struct PetEngine: Sendable {
 
     public mutating func removeToy() { toy = nil }
 
+    public mutating func beginDelivery(memeID: String, screenLeft: Double, screenRight: Double, staySeconds: Double) {
+        guard delivery == nil, screenLeft.isFinite, screenRight.isFinite, screenRight > screenLeft else { return }
+        cancelCursorHeist()
+        toy = nil; snack = nil; isUserNap = false
+        manualFollowUntil = 0; followingCursorUntil = 0
+        let left = position.x < (screenLeft + screenRight) / 2
+        let direction = left ? 1.0 : -1.0
+        let exit = left ? screenLeft - 460 : screenRight + 460
+        let drop = ((screenLeft + screenRight) / 2 + direction * 200).clamped(to: habitat.left...habitat.right)
+        delivery = MemeDelivery(memeID: memeID, entryDirection: direction, exitX: exit,
+            dropPetX: drop, cardPosition: Point(x: drop - direction * 200, y: habitat.floor + 12),
+            legStartX: position.x, targetX: exit, staySeconds: staySeconds.isFinite ? staySeconds.clamped(to: 8...120) : 20)
+        transition(to: .walking, for: .infinity)
+    }
+
+    public mutating func recallDelivery() {
+        guard var route = delivery else { return }
+        if route.phase == .fetching {
+            route.phase = .comingHome
+            route.legStartX = position.x
+            route.targetX = position.x.clamped(to: habitat.left...habitat.right)
+        } else if route.phase == .displaying || route.phase == .bringing {
+            route.phase = .collecting
+            route.legStartX = position.x
+            route.targetX = route.cardPosition.x - route.entryDirection * 200
+        } else { return }
+        delivery = route
+        transition(to: .walking, for: .infinity)
+    }
+
+    public mutating func keepDeliveryLonger() {
+        guard delivery?.phase == .displaying else { return }
+        delivery!.leaveAt = min(elapsed + 180, delivery!.leaveAt + 30)
+    }
+
+    public mutating func cancelDelivery() {
+        guard delivery != nil else { return }
+        delivery = nil
+        position = habitat.clamped(position)
+        position.y = habitat.floor
+        velocity = .zero
+        transition(to: .sitting, for: 4)
+    }
+
+    @discardableResult
+    public mutating func beginCursorHeist(at cursor: Point) -> Bool {
+        guard allowsCursorHeists, mischief >= 0.75, !isPaused, !isFocusing,
+              cursorHeist == nil, delivery == nil, toy == nil, snack == nil,
+              state == .sitting || state == .idle || state == .walking,
+              cursor.x.isFinite, cursor.y.isFinite,
+              cursor.y > habitat.floor + 15, cursor.y < habitat.floor + 240 * visualScale,
+              abs(cursor.x - position.x) < 400 * visualScale else { return false }
+        manualFollowUntil = 0; followingCursorUntil = 0
+        cursorHeist = CursorHeist()
+        nextHeist = elapsed + random.value(in: 90...180)
+        transition(to: .walking, for: 1)
+        return true
+    }
+
+    public mutating func inviteCursorHeist() { nextHeist = elapsed }
+
+    public mutating func cancelCursorHeist() {
+        guard cursorHeist != nil else { return }
+        cursorHeist = nil
+        nextHeist = max(nextHeist, elapsed + 40)
+        transition(to: .sitting, for: 4)
+    }
+
+    private mutating func updateCursorHeist(_ dt: Double, cursor: Point?) -> Bool {
+        guard var heist = cursorHeist else { return false }
+        heist.age += dt
+        if heist.phase == .sneaking {
+            guard let cursor, heist.age < 3.5,
+                  cursor.y > habitat.floor, cursor.y < habitat.floor + 250 * visualScale else {
+                cancelCursorHeist(); return false
+            }
+            if abs(cursor.x - position.x) < 95 * visualScale {
+                facingRight = cursor.x > position.x
+                heist.phase = .escaping
+                heist.age = 0
+                let direction = position.x > (habitat.left + habitat.right) / 2 ? -1.0 : 1.0
+                heist.escapeX = (position.x + direction * 260).clamped(to: habitat.left...habitat.right)
+                muddyUntil = elapsed + 8
+                events.append(.cursorCaught(position))
+                speak("Your cursor has been briefly borrowed.")
+            } else {
+                walk(toward: cursor.x, dt: dt, speed: 155)
+            }
+        } else {
+            guard heist.age < 1.35, abs(heist.escapeX - position.x) > 5 else {
+                cancelCursorHeist(); speak("Fine. You may have it back."); return true
+            }
+            walk(toward: heist.escapeX, dt: dt, speed: 210)
+        }
+        cursorHeist = heist
+        return true
+    }
+
+    private mutating func updateDelivery(_ dt: Double) -> Bool {
+        guard var route = delivery else { return false }
+        if route.phase == .displaying {
+            guard elapsed >= route.leaveAt else { return false }
+            route.phase = .collecting
+            route.legStartX = position.x
+            route.targetX = route.cardPosition.x - route.entryDirection * 200
+        }
+        let range = min(habitat.left, min(route.exitX, route.targetX))...max(habitat.right, max(route.exitX, route.targetX))
+        if abs(position.x - route.targetX) > 3 {
+            walk(toward: route.targetX, dt: dt, speed: 145 + 35 * mischief, bounds: range)
+            if route.isCarrying {
+                facingRight = route.carryDirection < 0
+                route.cardPosition = Point(x: position.x - route.carryDirection * 200, y: habitat.floor + 12)
+            }
+            delivery = route
+            return true
+        }
+        position.x = route.targetX
+        velocity = .zero
+        route.legStartX = position.x
+        switch route.phase {
+        case .fetching:
+            route.phase = .bringing
+            route.targetX = route.dropPetX
+            route.cardPosition = Point(x: position.x - route.entryDirection * 200, y: habitat.floor + 12)
+        case .bringing:
+            route.cardPosition = Point(x: position.x - route.entryDirection * 200, y: habitat.floor + 12)
+            route.phase = .displaying
+            route.leaveAt = elapsed + route.staySeconds
+            transition(to: .sitting, for: route.staySeconds + 1)
+            speak("I brought you a little something.")
+        case .collecting:
+            route.phase = .returning
+            route.targetX = route.exitX
+        case .returning:
+            route.phase = .comingHome
+            route.targetX = route.exitX < habitat.left ? habitat.left + 70 : habitat.right - 70
+            route.targetX = route.targetX.clamped(to: habitat.left...habitat.right)
+        case .comingHome:
+            delivery = nil
+            transition(to: .sitting, for: 7)
+            return true
+        case .displaying: break
+        }
+        delivery = route
+        return true
+    }
+
+    private mutating func pickQuip(_ fallback: String) -> String? {
+        guard chatter > 0 else { return nil }
+        var lines = customQuips
+        if includeBuiltInQuips { lines.append(fallback) }
+        if lines.count > 1 {
+            let fresh = lines.filter { $0 != previousQuip }
+            if !fresh.isEmpty { lines = fresh }
+        }
+        guard !lines.isEmpty else { return nil }
+        let index = Int(random.unit() * Double(lines.count)).clamped(to: 0...(lines.count - 1))
+        previousQuip = lines[index]
+        return lines[index].replacingOccurrences(of: "{name}", with: companionName)
+    }
+
+    private mutating func speak(_ fallback: String) {
+        if let text = pickQuip(fallback) { events.append(.speech(text)) }
+    }
+
     public mutating func drainEvents() -> [PetEvent] {
         defer { events.removeAll(keepingCapacity: true) }
         return events
@@ -358,6 +591,7 @@ public struct PetEngine: Sendable {
 
     private mutating func observeCursor(_ cursor: Point?, contact: Bool, dt: Double) {
         defer { previousCursor = cursor }
+        guard delivery == nil, cursorHeist == nil, !isFocusing else { return }
         guard let cursor, let previousCursor else { return }
         let distance = cursor.distance(to: previousCursor)
         if contact {
@@ -389,7 +623,7 @@ public struct PetEngine: Sendable {
         }
     }
 
-    private mutating func walk(toward x: Double, dt: Double, speed: Double) {
+    private mutating func walk(toward x: Double, dt: Double, speed: Double, bounds: ClosedRange<Double>? = nil) {
         if state != .walking { transition(to: .walking, for: 1) }
         let direction = x > position.x ? 1.0 : -1.0
         let distance = abs(x - position.x)
@@ -404,11 +638,13 @@ public struct PetEngine: Sendable {
         } else {
             position.x += step
         }
-        position.x = position.x.clamped(to: habitat.left...habitat.right)
+        position.x = position.x.clamped(to: bounds ?? habitat.left...habitat.right)
         position.y = habitat.floor
-        if mischief > 0.72, elapsed - lastPrank < 8, elapsed > nextFootprint {
-            nextFootprint = elapsed + 0.48
-            events.append(.footprint(position, facingRight))
+        if muddyPaws, mischief > 0.72 || elapsed < muddyUntil,
+           abs(position.x - (footprintX ?? position.x - 28)) >= 25, abs(velocity.x) > 12 {
+            footprintX = position.x
+            rightFoot.toggle()
+            events.append(.footprint(Point(x: position.x, y: habitat.floor), rightFoot))
         }
     }
 
@@ -438,7 +674,7 @@ public struct PetEngine: Sendable {
             ? ["this is my desk now.", "urgent: more snacks.", "i have a tiny complaint.", "nothing to see here."]
             : ["a little company for you.", "i brought you a good thought.", "small paws. big fan.", "you can pet the panda."]
         let index = Int(random.unit() * Double(notes.count)).clamped(to: 0...(notes.count - 1))
-        events.append(.note(position, notes[index]))
+        if let text = pickQuip(notes[index]) { events.append(.note(position, text)) }
     }
 
     private mutating func updateToy(_ dt: Double) {

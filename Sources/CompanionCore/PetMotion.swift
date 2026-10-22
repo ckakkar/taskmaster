@@ -64,8 +64,10 @@ public struct PetMotion: Sendable {
         lean.advance(to: engine.state == .carried ? (-engine.velocity.x * 0.00015).clamped(to: -0.12...0.12)
                      : walking ? engine.velocity.x * -0.00010 : 0, seconds: dt, response: 9)
         squash.advance(to: 0, seconds: dt, response: 17)
-        let distance = lastPositionX.map { abs(engine.position.x - $0) } ?? 0
-        if walking && distance < 80 { stride += distance / max(10, strideLength) * .pi * 2 }
+        let distance = lastPositionX.map { engine.position.x - $0 } ?? 0
+        if walking && abs(distance) < 80 {
+            stride += distance * (engine.facingRight ? 1 : -1) / max(10, strideLength) * .pi * 2
+        }
         lastPositionX = engine.position.x
         stride.formTruncatingRemainder(dividingBy: .pi * 2)
         if engine.facingRight != turnDestination {
