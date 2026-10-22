@@ -14,7 +14,7 @@ public enum DeliveryPhase: String, Sendable {
     }
 }
 
-public struct MemeDelivery: Sendable {
+public struct MemeDelivery: Equatable, Sendable {
     public let memeID: String
     public internal(set) var phase: DeliveryPhase = .fetching
     public let entryDirection: Double
