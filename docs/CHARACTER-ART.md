@@ -1,4 +1,9 @@
-# Miso character art
+# Character artwork and provenance
+
+Miso is an original character. Toothless is a fan version of an existing
+fictional character, not original character IP or an official game asset.
+
+## Miso
 
 Created on 2026-10-23 with the built-in imagegen tool. No reference artwork
 was supplied. The selected PNG is committed at
@@ -20,7 +25,7 @@ implemented in code.
 `Sources/Taskmaster/Resources/MisoHighFive.png` (1254 × 1254, RGBA) was created
 with the built-in imagegen tool using the original atlas as the character
 reference. It adds one pose of Miso, rather than another creature. Its eyes and
-raised paw have reviewed landmarks in `PetAtlas.swift`; its scale is normalized
+raised paw have reviewed landmarks in `MisoAtlas.json`; its scale is normalized
 against the sitting pose. Original image files retain their generated alpha.
 
 Exact production prompt:
@@ -34,3 +39,26 @@ or hand-keyed film sequence. A continuous leg deformation, head and tail rig,
 eye shader and pose crossfades provide movement at 60 Hz. Walking deforms the
 standing pose with planted feet and lifted swing phases; the original two walk
 poses are retained for future art work, but are no longer switched at 5 Hz.
+
+## Toothless companion — October 2026
+
+`Sources/Taskmaster/Resources/ToothlessAtlas.png` is a new transparent 1536×1024
+atlas generated with the built-in imagegen tool. Its JSON records ten pose
+regions, eyes and raised-paw landmarks. The final two cells are unused. Crops
+have overlap margins to retain wing and tail tips; the loader extracts the
+largest connected silhouette. No official game artwork is bundled. This is
+fan-made generated artwork depicting Toothless from *How to Train Your Dragon*,
+as requested by the project owner.
+
+The shipped asset lives in the repository. Its original generation output is
+retained under the local generated-images directory; the app does not depend
+on that directory. Coat variants of Miso are computed by the application and
+preserve the original fur shading and transparency.
+
+<details><summary>Toothless production prompt</summary>
+
+```text
+Use case: stylized-concept. Asset type: production transparent sprite atlas for a native macOS desktop companion. Create a beautiful premium soft 3D animated-film style BABY TOOTHLESS, the cute black Night Fury dragon from How to Train Your Dragon: huge expressive green eyes, rounded black head, ear fins, tiny wings, four short paws, long curved tail with his recognizable tail fins. The exact same adorable character consistently repeated across TEN separate complete full-body poses. Warm soft light from upper left, exquisitely soft scales, clean readable silhouettes, no floor, no background, no cast shadows, no text, no borders. TRANSPARENT RGBA. Strict evenly spaced FOUR COLUMNS by THREE ROWS grid, landscape canvas; each cell has generous transparent padding and contains exactly ONE complete dragon with no overlap. Camera always the same three-quarter side view facing RIGHT. In row-major order: cell 1 standing on four paws, cell 2 walking with near front paw stepping forward, cell 3 opposite walking step, cell 4 seated sweetly; cell 5 curled up sleeping eyes closed; cell 6 gently held in midair with paws dangling (no human hands); cell 7 delighted grinning with eyes closed; cell 8 playful bow front paws lowered with rear up; cell 9 cheeky plotting grin and narrowed eyes; cell 10 sitting and raising the right-front paw for a high five. Cells 11 and 12 remain fully empty transparent. Consistent body proportions, direction, character details and approximate character size across cells. This is actual game art, not a mockup or UI. Do not add labels, symbols, props, watermark or a checkerboard background.
+```
+
+</details>

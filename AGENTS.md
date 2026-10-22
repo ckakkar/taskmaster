@@ -6,6 +6,7 @@
 - `Sources/Taskmaster/`: native macOS application, transparent overlay, rendering, customization and image library.
 - `Sources/Taskmaster/Resources/`: character images and artwork metadata.
 - `Tests/CompanionCoreTests/`: Swift Testing behavior and regression tests.
+- `Tests/TaskmasterTests/`: native rendering, meme recovery and image-import tests.
 - `Resources/`, `scripts/`: app metadata, icon generation and local packaging.
 - `docs/`: architecture, art provenance, screenshots and handoff notes.
 

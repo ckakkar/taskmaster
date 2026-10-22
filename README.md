@@ -1,103 +1,160 @@
+<div align="center">
+  <img src="Sources/Taskmaster/Resources/MisoHighFive.png" alt="Miso offers a tiny high five" width="180">
+
 # Taskmaster
 
-**A little company. A little mischief.**
+**A little company. A little mischief. A desktop with a heartbeat.**
 
-A native Mac desktop companion starring Miso, a fluffy red panda with small
-paws and a considerable personality. Choose peaceful company, a curious
-playmate, or a lovable menace. Pick Miso up, give it a treat, throw a ball,
-or let it quietly fall asleep beside your work.
+A native Mac companion that notices your cursor, brings you memes,
+keeps you company while you work, and occasionally commits a very small crime.
 
-Built with Swift, AppKit, SwiftUI and SpriteKit. macOS 14 or newer.
+[![macOS](https://img.shields.io/badge/macOS-14%2B-333333?logo=apple)](#get-started)
+[![Swift](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)](#under-the-fur)
+[![Check](https://github.com/ckakkar/taskmaster/actions/workflows/check.yml/badge.svg)](https://github.com/ckakkar/taskmaster/actions/workflows/check.yml)
 
-## Meet Miso
+[Meet the companions](#meet-your-desk-mates) · [Make it yours](#your-kind-of-company) · [Build & run](#get-started) · [Handoff](docs/HANDOFF.md)
 
-- **Cozy, Playful, Chaos.** Three personalities and a continuous mischief slider
-  change roaming, naps, pointer curiosity and little surprises.
-- **Pick up and put down.** Drag the panda around your screen, release it, and
-  watch it fall and land. Click to pet; double-click to open its room.
-- **A panda that notices you.** Miso follows a nearby pointer with its eyes,
-  leans its head, blinks, flicks its ears and swishes its tail. Gently move over
-  its fur to pet it. Playful and Chaos moods investigate a wiggling cursor;
-  Cozy stays peaceful. The companion room responds to your cursor too.
-- **Little rituals.** Treats bring happy reactions and crumbs. Petting brings
-  hearts. Play creates a ball you can pick up and throw; Miso chases and bats it.
-- **Tiny games.** Offer a high five and click the raised paw. “Follow me” starts
-  a one-minute cursor game, with “Stay here” to stop. “Find a snack” sends Miso
-  off to sniff out and eat a biscuit. The menu also has stretches and a call
-  to bring Miso to the screen you’re using.
-- **A little chaos.** The panda brings silly notes and leaves temporary
-  pawprints. Its props belong to the app; your documents stay out of the game.
-- **A calm companion room.** Change personality, name, size and sound effects,
-  or settle the panda down with one click.
-- **A home in the menu bar.** Right-click Miso or use the paw icon for controls,
-  hiding, pausing and quitting. Closing the room leaves Miso on your desktop.
-- **Considerate by default.** Sound starts off. The overlay passes clicks
-  through transparent areas, does not take keyboard focus, follows Reduce
-  Motion, and sleeps when the display does. Idle naps are optional.
-- **Local.** No account, backend, API key or runtime network connection.
+</div>
 
-The character uses ten original generated poses, with a soft deformation rig,
-animated eyes, breathing, pose transitions, reactions, particles and physics.
-The 60 Hz loop uses continuous leg motion, eased acceleration and braking,
-spring-based landings, and gentle turns instead of flipping between walk frames.
-This is a first playable version;
-window-top perching, additional species and longer animation sequences are
-future work.
+![The companion room, running on macOS](docs/media/room.jpg)
 
-## Build and run
+## Meet your desk mates
 
-Requires macOS 14+, Swift 6+, and the Xcode Command Line Tools or Xcode.
+| Companion | Personality you can see | Their little specialty |
+| --- | --- | --- |
+| **Miso** | A fluffy red panda with curious eyes, a swishing tail, and questionable intentions. | Muddy zoomies, pawprint trails, and an optional cursor heist. Four coat tones and a tiny wardrobe. |
+| **Toothless** | A miniature Night Fury with bright green eyes, ear fins, wings, and an unmistakable silhouette. | Full-screen **2D flight**, wing movement, blue spark trails, a glowing plasma toy, and airborne cursor following. |
+
+Each has ten authored poses: standing, two walk steps, sitting, sleeping,
+being carried, delight, a play bow, scheming, and a high five. Their shared
+behavior includes petting, treats, naps, dragging, games, notes and deliveries.
+Toothless lands gently before a ground activity or a quiet focus session.
+
+Airborne companions pass clicks through to your windows. Use **Land gently**
+before picking one up. Automatic flights are rare and have a three-minute
+breather between starts; Cozy keeps them off. Explicit flights are always
+available from the room. Toothless is a fan version of the existing character; Miso is an original
+design. Both use painted sprite art.
+
+## Your kind of company
+
+### Peaceful, playful, or a lovable menace
+
+Choose **Cozy**, **Playful**, or **Chaos**, then fine-tune the mischief slider.
+A nearby cursor gets a glance, a head tilt, or an invitation to play. Gentle
+strokes earn hearts; a raised paw is waiting for your high five.
+
+Chaos can leave temporary pawprints, deliver silly notes, and borrow your
+cursor for a quick getaway. Cursor heists start **off**. Enable them in
+**Make it yours → Little crimes**; click or press Esc to end one.
+They last at most 1½ seconds and pause during focus. Wipe the evidence with one click.
+
+### A familiar face, with your sense of humor
+
+Pick a companion, choose a name and size, and write your own sayings.
+Use `{name}` wherever their name should appear. Mix in the original quips,
+add a cozy or chaotic pack, or choose silence. Bubble colors and reading time
+are adjustable too. Miso's coat, bandana, bow and bell can be styled separately.
+
+![Choose a companion and customize its appearance](docs/media/wardrobe.jpg)
+
+### Special delivery, from somewhere off-screen
+
+Add your own images or paste a direct HTTPS image link. Your companion walks
+out of view, pulls a card onto the desktop, leaves it for a while, and takes
+it back. Keep a card for another 30 seconds, send it home early, or let occasional
+deliveries happen on a schedule. Three original starter cards are included.
+
+The stash holds up to 100 cards. Imports are copied, resized to at most 1600 pixels,
+and stored locally; originals stay untouched. Files and downloads are limited
+to 25 MB. Animated images use their first frame.
+
+### A little focus, together
+
+Start a 1–90 minute session. Your companion settles nearby while you work,
+then offers a gentle stretch reminder. The countdown uses real time, including
+when the pet is tucked away. Completed sessions are saved; an active timer
+resets when the app quits.
+
+## Get started
+
+Requires **macOS 14+**, **Swift 6+**, and Xcode or the Xcode Command Line Tools.
 There are no third-party package dependencies.
 
 ```sh
-make run     # build and open build/Taskmaster.app
-make check   # behavior tests plus compilation of the native app
-make app     # create the release app bundle
-make dmg     # package build/Taskmaster.dmg
-make clean   # remove generated build products
+git clone https://github.com/ckakkar/taskmaster.git
+cd taskmaster
+make run
 ```
 
-The build uses the Mac's current architecture and ad-hoc signs the local app.
-It is not notarized. Distribution signing and automatic updates are not set up.
+This creates and opens `build/Taskmaster.app`. Use `make dmg` for a drag-and-drop
+installer. Local builds are ad-hoc signed; distribution signing, notarization
+and automatic updates are not configured.
 
-For debugging without a bundle, `make build` then run
-`.build/debug/Taskmaster`. `--quiet` opens only the desktop pet and menu-bar
-controls. `--self-check` verifies that all ten character textures and their eye
-landmarks load.
+| Command | What it does |
+| --- | --- |
+| `make run` | Build the release app and open the companion room. |
+| `make check` | Run behavior and image-import tests, compile the native app, and validate every shipped pose. |
+| `make lint` / `make format` | Check or apply the repository's Swift formatting. |
+| `make app` / `make dmg` | Create the app bundle or installer under `build/`. |
+| `make clean` | Remove generated build products. |
 
-## Preferences
+**Your way back home:** the paw in the menu bar opens the room, settings,
+games, pause, hide and quit. Right-click the companion for the same controls.
+Closing the room leaves your desk mate running. With the app focused,
+`⌘,` opens the room and `⌘;` opens customization. Launch with `--quiet`
+to show just the desktop companion and menu bar.
 
-Settings are stored in
-`~/Library/Application Support/Taskmaster/preferences.json`. To use isolated
-state while developing, set `TASKMASTER_STATE_DIR` to a directory in this repo:
+## At home on your Mac
+
+No account, analytics, cloud backend, camera or microphone. Images and
+preferences live in `~/Library/Application Support/Taskmaster/`. Network requests
+happen when you explicitly import an HTTPS image; automatic deliveries use
+only your local stash. The app never types, reads your screen contents,
+or changes your documents. The optional cursor game moves the pointer briefly.
+
+The transparent overlay passes clicks through empty space. Sound starts off.
+Reduce Motion disables warping, bounce effects, particles and cursor grabs.
+The renderer sleeps with your display. One overlay follows the companion's
+current display; drag the pet to another monitor to move it there.
+
+For isolated development state:
 
 ```sh
+make build
 TASKMASTER_STATE_DIR="$PWD/.local" .build/debug/Taskmaster
+.build/debug/Taskmaster --self-check
 ```
 
-No Accessibility, camera, microphone or screen-recording permission is
-required for the implemented features. The app does not read window contents,
-type, move files or control other applications.
+## Under the fur
 
-## Project layout
+**SwiftUI** for the room and customization. **AppKit** for the menu bar and
+transparent nonactivating window. **SpriteKit** for character rendering.
+A deterministic **CompanionCore** handles behavior, physics, scheduling and
+2D movement without importing UI code.
 
 ```text
-Sources/CompanionCore/       Deterministic behavior, preferences and toy physics
-Sources/Taskmaster/          Desktop overlay, rendering, room and menu bar
-Sources/Taskmaster/Resources Original transparent character atlas
-Tests/CompanionCoreTests/   Long-session, recovery and interaction tests
-Resources/                  Application metadata
-scripts/                    Local app and DMG packaging
-docs/                       Character art provenance and design decisions
+Sources/CompanionCore/       Behavior, games, preferences, scheduling, physics
+Sources/Taskmaster/          Native app, rendering, wardrobe, meme library
+Sources/Taskmaster/Resources Character artwork and pose/eye/neck metadata
+Tests/CompanionCoreTests/   Simulation and regression tests
+Tests/TaskmasterTests/      Image import, recovery and streaming limits
+Resources/                  App metadata
+scripts/                    Build, icon and installer tools
+docs/                       Architecture, art provenance and handoff
 ```
 
-`CompanionCore` has no UI dependencies. Behavior tests run without operating
-the desktop. On-screen interaction and multiple-display behavior require a
-real Mac session; a passing unit test is not a substitute for trying the app.
+The motion rig combines planted footsteps, eased acceleration, spring-based
+landings, eye tracking, blinks, ear flicks and pose transitions. Sprite textures
+are reused, transient effects are capped, and image conversion runs off the
+main thread. Animation feel and battery use still deserve testing on real Macs.
 
-## Character art
+Read [Architecture](docs/ARCHITECTURE.md), [Artwork & provenance](docs/CHARACTER-ART.md),
+and [Repository guidelines](AGENTS.md) before contributing. Include relevant
+tests, screenshots for visual changes, and an honest account of what you tried
+in the running app. Current verification and known limitations are recorded
+in the [handoff](docs/HANDOFF.md).
 
-The red panda is original artwork generated for this project using imagegen.
-The atlas and exact production prompt are documented in
-[docs/CHARACTER-ART.md](docs/CHARACTER-ART.md). Desktop Goose is an inspiration;
-its code and assets are not included.
+---
+
+<div align="center"><sub>Small paws. Big opinions. Made for the little moments between your work.</sub></div>
