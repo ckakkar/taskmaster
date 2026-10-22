@@ -78,6 +78,9 @@ final class DesktopController: NSObject {
     }
 
     func applyPreferences() {
+        scene.changeAtlas(model.atlas)
+        for preview in model.previews { preview.changeAtlas(model.atlas) }
+        engine.avatar = model.preferences.avatar
         engine.mischief = model.preferences.mischief
         engine.quietWhenIdle = model.preferences.quietWhenIdle
         engine.customQuips = model.preferences.quipLines
@@ -91,7 +94,11 @@ final class DesktopController: NSObject {
         engine.visualScale = model.preferences.sanitized().size
         if !engine.allowsCursorHeists || engine.mischief < 0.75 { engine.cancelCursorHeist() }
         let habitat = Self.habitat(for: screen, scale: model.preferences.size)
-        if engine.habitat != habitat { engine.changeHabitat(habitat) }
+        if engine.habitat != habitat {
+            let route = engine.aerialRoute
+            engine.changeHabitat(habitat)
+            if route != nil { engine.startAerialTour() }
+        }
         panel.collectionBehavior =
             model.preferences.allSpaces
             ? [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]

@@ -113,7 +113,7 @@ struct CompanionRoom: View {
                     .accessibilityLabel(
                         model.state == .highFive
                             ? "\(model.preferences.name) offers a high five. Press to return it."
-                            : "\(model.preferences.name), your red panda. Press to pet."
+                            : "\(model.preferences.name), your \(model.preferences.avatar.title) companion. Press to pet."
                     )
                     .accessibilityAddTraits(.isButton)
                     .accessibilityAction { model.perform(.pet) }
@@ -234,7 +234,9 @@ struct CompanionRoom: View {
             }
             HStack(spacing: 9) {
                 RitualButton(title: "Treat", symbol: "carrot.fill") { model.perform(.treat) }
-                RitualButton(title: "Play", symbol: "tennisball.fill") { model.perform(.play) }
+                RitualButton(
+                    title: model.preferences.avatar == .toothless ? "Plasma" : "Play", symbol: "tennisball.fill"
+                ) { model.perform(.play) }
                 RitualButton(
                     title: model.state == .sleeping ? "Wake" : "Nap",
                     symbol: model.state == .sleeping ? "sun.max.fill" : "moon.zzz.fill"
@@ -257,6 +259,15 @@ struct CompanionRoom: View {
                     hint: "Watch \(model.preferences.name) find and eat a little biscuit."
                 ) { model.perform(.findTreat) }
             }
+            Button {
+                model.perform(model.state == .flying || model.state == .grappling ? .stopFollowing : .signature)
+            } label: {
+                Label(
+                    model.state == .flying || model.state == .grappling
+                        ? "Land gently" : model.preferences.avatar.signature,
+                    systemImage: model.preferences.avatar.symbol
+                ).frame(maxWidth: .infinity)
+            }.buttonStyle(.bordered).controlSize(.small)
         }
     }
 
@@ -451,7 +462,12 @@ struct PetPreview: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ view: PreviewView, context: Context) {}
+    func updateNSView(_ view: PreviewView, context: Context) {
+        guard let scene = view.scene as? PetScene else { return }
+        if wardrobe { model.appearanceScene = scene } else { model.previewScene = scene }
+        scene.changeAtlas(model.atlas)
+        view.isPaused = false
+    }
 
     static func dismantleNSView(_ view: PreviewView, coordinator: ()) {
         view.isPaused = true

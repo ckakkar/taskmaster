@@ -27,6 +27,7 @@ final class PetAtlas {
             let height: Double
             let eyes: [Eye]?
             let neck: Neck?
+            let paw: Gesture.Landmark?
         }
         let sourceWidth: Double
         let sourceHeight: Double
@@ -43,7 +44,7 @@ final class PetAtlas {
             let relativeScale: Double
             let neck: Neck
         }
-        let highFive: Gesture
+        let highFive: Gesture?
     }
     struct Frame {
         struct Eye {
@@ -73,12 +74,14 @@ final class PetAtlas {
         }
     }
 
+    let avatar: AvatarKind
     private(set) var frames: [PetPose: Frame] = [:]
     let standingHeight: Double
     let maximumFrameHeight: Double
     private var coatTextures: [String: SKTexture] = [:]
 
-    init() throws {
+    init(avatar: AvatarKind = .miso) throws {
+        self.avatar = avatar
         let resources: Bundle
         if Bundle.main.bundleURL.pathExtension == "app" {
             guard let bundleURL = Bundle.main.resourceURL?.appendingPathComponent("Taskmaster_Taskmaster.bundle"),
@@ -88,19 +91,19 @@ final class PetAtlas {
         } else {
             resources = Bundle.module
         }
-        guard let url = resources.url(forResource: "MisoAtlas", withExtension: "png"),
+        guard let url = resources.url(forResource: avatar.atlasName, withExtension: "png"),
             let source = CGImageSourceCreateWithURL(url as CFURL, nil),
             let sheet = CGImageSourceCreateImageAtIndex(source, 0, nil)
         else { throw ArtError.missingAtlas }
-        guard let layoutURL = resources.url(forResource: "MisoAtlas", withExtension: "json") else {
+        guard let layoutURL = resources.url(forResource: avatar.atlasName, withExtension: "json") else {
             throw ArtError.missingAtlas
         }
         let layout = try JSONDecoder().decode(Layout.self, from: Data(contentsOf: layoutURL))
-        guard layout.frames.count == 9,
+        guard [9, 10].contains(layout.frames.count),
             layout.sourceWidth > 0, layout.sourceHeight > 0
         else { throw ArtError.invalidFrame }
 
-        for pose in PetPose.allCases where pose != .highFive {
+        for pose in PetPose.allCases where pose.rawValue < layout.frames.count {
             let region = layout.frames[pose.rawValue]
             let sx = Double(sheet.width) / layout.sourceWidth
             let sy = Double(sheet.height) / layout.sourceHeight
@@ -123,61 +126,65 @@ final class PetAtlas {
             let alpha = stride(from: 3, to: trimmedPixels.count, by: 4).map { trimmedPixels[$0] }
             let texture = SKTexture(cgImage: trimmed)
             texture.filteringMode = .linear
+            let originX = Double(rectangle.minX + bounds.minX)
+            let originY = Double(rectangle.minY + bounds.minY)
+            func landmark(_ x: Double, _ y: Double) -> SIMD2<Float> {
+                let px = (x * sx - originX) / Double(trimmed.width)
+                let py = 1 - (y * sy - originY) / Double(trimmed.height)
+                return SIMD2(Float(px), Float(py))
+            }
+            let eyes: [Frame.Eye] = (region.eyes ?? []).map {
+                Frame.Eye(center: landmark($0.x, $0.y), radius: Float($0.radius * sx))
+            }
+            let paw: SIMD2<Float>? = region.paw.map { landmark($0.x, $0.y) }
+            let neck: Frame.Neck? = region.neck.map {
+                Frame.Neck(
+                    center: landmark($0.x, $0.y),
+                    width: Float($0.width * sx / Double(trimmed.width)), angle: $0.angle)
+            }
             frames[pose] = Frame(
                 image: trimmed, texture: texture, alpha: alpha,
-                width: trimmed.width, height: trimmed.height,
-                eyes: (region.eyes ?? []).map { eye in
-                    Frame.Eye(
-                        center: SIMD2(
-                            Float((eye.x * sx - rectangle.minX - bounds.minX) / Double(trimmed.width)),
-                            Float(1 - (eye.y * sy - rectangle.minY - bounds.minY) / Double(trimmed.height))
-                        ), radius: Float(eye.radius * sx))
-                },
-                neck: region.neck.map { neck in
-                    Frame.Neck(
-                        center: SIMD2(
-                            Float((neck.x * sx - rectangle.minX - bounds.minX) / Double(trimmed.width)),
-                            Float(1 - (neck.y * sy - rectangle.minY - bounds.minY) / Double(trimmed.height))),
-                        width: Float(neck.width * sx / Double(trimmed.width)), angle: neck.angle)
-                }
-            )
+                width: trimmed.width, height: trimmed.height, eyes: eyes, paw: paw, neck: neck)
         }
-        // The new gesture has its own transparent image and scale reference.
-        if let url = resources.url(forResource: "MisoHighFive", withExtension: "png"),
-            let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-            let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
-        {
-            let bounds = Self.opaqueBounds(Self.rgba(image), width: image.width, height: image.height)
-            guard let trimmed = image.cropping(to: bounds) else { throw ArtError.invalidFrame }
-            let data = Self.rgba(trimmed)
-            let texture = SKTexture(cgImage: trimmed)
-            texture.filteringMode = .linear
-            let metadata = layout.highFive
-            guard metadata.sourceWidth > 0, metadata.sourceHeight > 0,
-                metadata.relativeScale > 0, metadata.eyes.count == 2
-            else { throw ArtError.invalidFrame }
-            func landmark(_ x: Double, _ y: Double) -> SIMD2<Float> {
-                let px = x / metadata.sourceWidth * Double(image.width) - bounds.minX
-                let py = y / metadata.sourceHeight * Double(image.height) - bounds.minY
-                return SIMD2(Float(px / Double(trimmed.width)), Float(1 - py / Double(trimmed.height)))
+        if layout.frames.count == 9 {
+            // The new gesture has its own transparent image and scale reference.
+            if let url = resources.url(forResource: "MisoHighFive", withExtension: "png"),
+                let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+                let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+            {
+                let bounds = Self.opaqueBounds(Self.rgba(image), width: image.width, height: image.height)
+                guard let trimmed = image.cropping(to: bounds) else { throw ArtError.invalidFrame }
+                let data = Self.rgba(trimmed)
+                let texture = SKTexture(cgImage: trimmed)
+                texture.filteringMode = .linear
+                guard let metadata = layout.highFive else { throw ArtError.invalidFrame }
+                guard metadata.sourceWidth > 0, metadata.sourceHeight > 0,
+                    metadata.relativeScale > 0, metadata.eyes.count == 2
+                else { throw ArtError.invalidFrame }
+                func landmark(_ x: Double, _ y: Double) -> SIMD2<Float> {
+                    let px = x / metadata.sourceWidth * Double(image.width) - Double(bounds.minX)
+                    let py = y / metadata.sourceHeight * Double(image.height) - Double(bounds.minY)
+                    return SIMD2(Float(px / Double(trimmed.width)), Float(1 - py / Double(trimmed.height)))
+                }
+                let eyes = metadata.eyes.map {
+                    Frame.Eye(
+                        center: landmark($0.x, $0.y),
+                        radius: Float($0.radius / metadata.sourceWidth * Double(image.width)))
+                }
+                let artworkScale = Double(frames[.sitting]!.height) * metadata.relativeScale / Double(trimmed.height)
+                frames[.highFive] = Frame(
+                    image: trimmed, texture: texture,
+                    alpha: stride(from: 3, to: data.count, by: 4).map { data[$0] },
+                    width: trimmed.width, height: trimmed.height, eyes: eyes,
+                    artworkScale: artworkScale, paw: landmark(metadata.paw.x, metadata.paw.y),
+                    neck: Frame.Neck(
+                        center: landmark(metadata.neck.x, metadata.neck.y),
+                        width: Float(
+                            metadata.neck.width / metadata.sourceWidth * Double(image.width) / Double(trimmed.width)),
+                        angle: metadata.neck.angle))
+            } else {
+                throw ArtError.missingAtlas
             }
-            let eyes = metadata.eyes.map {
-                Frame.Eye(
-                    center: landmark($0.x, $0.y), radius: Float($0.radius / metadata.sourceWidth * Double(image.width)))
-            }
-            let artworkScale = Double(frames[.sitting]!.height) * metadata.relativeScale / Double(trimmed.height)
-            frames[.highFive] = Frame(
-                image: trimmed, texture: texture,
-                alpha: stride(from: 3, to: data.count, by: 4).map { data[$0] },
-                width: trimmed.width, height: trimmed.height, eyes: eyes,
-                artworkScale: artworkScale, paw: landmark(metadata.paw.x, metadata.paw.y),
-                neck: Frame.Neck(
-                    center: landmark(metadata.neck.x, metadata.neck.y),
-                    width: Float(
-                        metadata.neck.width / metadata.sourceWidth * Double(image.width) / Double(trimmed.width)),
-                    angle: metadata.neck.angle))
-        } else {
-            throw ArtError.missingAtlas
         }
         standingHeight = Double(frames[.standing]?.height ?? 300)
         maximumFrameHeight = frames.values.map { Double($0.height) * $0.artworkScale }.max() ?? 400
@@ -187,7 +194,7 @@ final class PetAtlas {
 
     func texture(for pose: PetPose, coat: CoatStyle) -> SKTexture {
         let frame = frame(for: pose)
-        guard coat != .cinnamon else { return frame.texture }
+        guard avatar == .miso, coat != .cinnamon else { return frame.texture }
         let key = "\(pose.rawValue)-\(coat.rawValue)"
         if let cached = coatTextures[key] { return cached }
         var pixels = Self.rgba(frame.image)
@@ -211,7 +218,7 @@ final class PetAtlas {
         case .walking: .standing
         case .sitting: .sitting
         case .sleeping: .sleeping
-        case .carried, .falling: .carried
+        case .carried, .falling, .flying, .grappling: .carried
         case .happy: .delighted
         case .playing, .curious: .playBow
         case .scheming: .mischievous
@@ -285,7 +292,7 @@ final class PetAtlas {
     enum ArtError: LocalizedError {
         case missingAtlas, invalidFrame
         var errorDescription: String? {
-            "Miso’s character artwork could not be loaded. Rebuild the application bundle."
+            "The companion’s artwork could not be loaded. Rebuild the application bundle."
         }
     }
 }

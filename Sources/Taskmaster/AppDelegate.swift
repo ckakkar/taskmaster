@@ -58,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         guard let model else { return }
         if room == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 840, height: 745),
+                contentRect: NSRect(x: 0, y: 0, width: 840, height: 790),
                 styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
                 backing: .buffered, defer: false
             )
@@ -71,8 +71,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             window.contentView = NSHostingView(rootView: CompanionRoom(model: model))
             window.center()
             window.setFrameAutosaveName("CompanionRoom")
-            window.contentMinSize = NSSize(width: 790, height: 720)
-            if window.contentLayoutRect.height < 720 { window.setContentSize(NSSize(width: 840, height: 745)) }
+            window.contentMinSize = NSSize(width: 790, height: 770)
+            if window.contentLayoutRect.height < 770 { window.setContentSize(NSSize(width: 840, height: 790)) }
             room = window
         }
         NSApp.activate(ignoringOtherApps: true)
@@ -153,6 +153,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             action: #selector(follow), to: menu, symbol: "cursorarrow.motionlines")
         add("Find a hidden snack", action: #selector(findTreat), to: menu, symbol: "sparkle.magnifyingglass")
         add("Come to this screen", action: #selector(comeHere), to: menu, symbol: "arrow.down.to.line")
+        add(
+            model.preferences.avatar.signature, action: #selector(signature), to: menu,
+            symbol: model.preferences.avatar.symbol)
         add("Have a stretch", action: #selector(stretch), to: menu, symbol: "figure.flexibility")
         add("Muddy zoomies", action: #selector(zoomies), to: menu, symbol: "hare")
         add("Wipe pawprints", action: #selector(wipe), to: menu, symbol: "sparkles")
@@ -218,6 +221,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
     @objc private func findTreat() { model?.perform(.findTreat) }
     @objc private func comeHere() { model?.desktop.callToPointer() }
+    @objc private func signature() { model?.perform(.signature) }
     @objc private func stretch() { model?.perform(.stretch) }
     @objc private func zoomies() { model?.perform(.muddyZoomies) }
     @objc private func wipe() { model?.wipePawprints() }

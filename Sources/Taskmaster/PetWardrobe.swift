@@ -109,11 +109,16 @@ final class PetWardrobe: SKNode {
             knot.strokeColor = color
             addChild(knot)
         case .bell:
-            let collar = SKShapeNode(rectOf: CGSize(width: 45, height: 7), cornerRadius: 3)
-            collar.fillColor = color
-            collar.strokeColor = .clear
+            let band = CGMutablePath()
+            band.move(to: CGPoint(x: -23, y: 5))
+            band.addQuadCurve(to: CGPoint(x: 23, y: 7), control: CGPoint(x: 0, y: -5))
+            let collar = SKShapeNode(path: band)
+            collar.fillColor = .clear
+            collar.strokeColor = color
+            collar.lineWidth = 5
+            collar.lineCap = .round
             addChild(collar)
-            let bell = SKShapeNode(circleOfRadius: 9)
+            let bell = SKShapeNode(circleOfRadius: 7)
             bell.fillColor = NSColor(calibratedRed: 0.94, green: 0.73, blue: 0.34, alpha: 1)
             bell.strokeColor = NSColor(calibratedRed: 0.62, green: 0.42, blue: 0.17, alpha: 1)
             bell.position = CGPoint(x: 3, y: -11)

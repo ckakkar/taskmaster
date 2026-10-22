@@ -37,7 +37,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var focusLabel = "A little company while you work."
     @Published private(set) var focusProgress: Double = 0
 
-    let atlas: PetAtlas
+    private(set) var atlas: PetAtlas
+    private var atlasCache: [AvatarKind: PetAtlas] = [:]
     let library: MemeLibrary
     private(set) var desktop: DesktopController!
     weak var previewScene: PetScene?
@@ -73,13 +74,36 @@ final class AppModel: ObservableObject {
         } else {
             preferences = Preferences()
         }
-        desktop = DesktopController(model: self, atlas: atlas)
+        atlasCache[atlas.avatar] = atlas
+        if preferences.avatar != atlas.avatar {
+            if let chosen = art(for: preferences.avatar) { self.atlas = chosen } else { preferences.avatar = .miso }
+        }
+        desktop = DesktopController(model: self, atlas: self.atlas)
         schedule = CompanionSchedule(preferences: preferences, now: Date().timeIntervalSince1970)
     }
 
     func select(_ personality: Personality) {
         preferences.mischief = personality.mischief
         if state == .sleeping { perform(.wake) }
+    }
+
+    func art(for avatar: AvatarKind) -> PetAtlas? {
+        if let cached = atlasCache[avatar] { return cached }
+        guard let loaded = try? PetAtlas(avatar: avatar) else { return nil }
+        atlasCache[avatar] = loaded
+        return loaded
+    }
+
+    func selectAvatar(_ avatar: AvatarKind) {
+        guard avatar != preferences.avatar, let art = art(for: avatar) else { return }
+        desktop.engine.cancelAerialTour()
+        desktop.engine.cancelDelivery()
+        desktop.engine.perform(.wake)
+        desktop.engine.removeToy()
+        atlas = art
+        if preferences.name == preferences.avatar.title { preferences.name = avatar.title }
+        preferences.avatar = avatar
+        desktop.renderNow()
     }
 
     func perform(_ action: PetAction) {
@@ -247,6 +271,7 @@ final class AppModel: ObservableObject {
             availability: .init(
                 visible: isVisible, paused: isPaused,
                 readyForDelivery: desktop.engine.delivery == nil && desktop.engine.cursorHeist == nil
+                    && desktop.engine.aerialRoute == nil
                     && desktop.engine.state != .sleeping && desktop.engine.state != .carried
                     && desktop.engine.state != .falling && !library.enabledItems.isEmpty))
         if update?.focusCompleted == true {

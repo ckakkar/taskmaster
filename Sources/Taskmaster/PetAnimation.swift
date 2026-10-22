@@ -51,7 +51,7 @@ final class PetAnimation {
             (sin(t * (happy ? 5 : 1.8)) + sin(t * 0.73) * 0.28)
             * (asleep ? 0.003 : happy ? 0.026 + engine.affection * 0.008 : 0.017)
         let walking = engine.state == .walking ? Float(motion.movement.value) : 0
-        let feet = WalkCycle.phaseOffsets.map { WalkCycle.foot(phase: motion.stride, offset: $0) }
+        let feet = engine.avatar.footPhases.map { WalkCycle.foot(phase: motion.stride, offset: $0) }
         let stretch = engine.state == .stretching ? sin(min(1, engine.stateAge / 3.2) * .pi) : 0
         var source: [SIMD2<Float>] = []
         var destination: [SIMD2<Float>] = []
@@ -70,12 +70,15 @@ final class PetAnimation {
                 var gaitX: Float = 0
                 var gaitY: Float = 0
                 for index in feet.indices {
-                    let distance = max(0, abs(x - Float(WalkCycle.footPositions[index])) - 0.045) / 0.075
+                    let distance = max(0, abs(x - Float(engine.avatar.feet[index])) - 0.045) / 0.075
                     let weight = exp(-distance * distance) * legs * walking
                     gaitX += Float(feet[index].x) * weight
                     gaitY += Float(feet[index].y - 0.012) * weight
                 }
                 let bodyRise = Float(sin(motion.stride * 2) * 0.004) * min(1, y * 3) * walking
+                let wing =
+                    engine.avatar == .toothless && engine.aerialRoute != nil
+                    ? sin(t * 8) * 0.055 * Double(max(0, 1 - x * 1.7)) * Double(max(0, y - 0.2)) : 0
                 let pawWeight: Float
                 if engine.state == .highFive, let paw = frame.paw {
                     pawWeight = exp(-pow((x - paw.x) / 0.25, 2) - pow((y - paw.y) / 0.25, 2))
@@ -97,7 +100,7 @@ final class PetAnimation {
                     + Float(attention.engagement * 0.008) * earWeight
                     - Float(stretch * 0.025) * headWeight
                     + Float(cos(t * 4) * 0.008) * pawWeight
-                    + bodyRise
+                    + bodyRise + Float(wing)
                 destination.append(SIMD2(x + dx, y + dy))
             }
         }
