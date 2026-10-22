@@ -13,5 +13,6 @@ let package = Package(
             resources: [.process("Resources")]
         ),
         .testTarget(name: "CompanionCoreTests", dependencies: ["CompanionCore"]),
+        .testTarget(name: "TaskmasterTests", dependencies: ["Taskmaster"]),
     ]
 )

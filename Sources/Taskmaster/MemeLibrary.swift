@@ -2,7 +2,7 @@ import AppKit
 import ImageIO
 import UniformTypeIdentifiers
 
-struct MemeItem: Codable, Identifiable, Equatable {
+struct MemeItem: Codable, Identifiable, Equatable, Sendable {
     let id: String
     var title: String
     let fileName: String?
@@ -17,6 +17,11 @@ final class MemeLibrary: ObservableObject {
     private let indexURL: URL
     private let images = NSCache<NSString, NSImage>()
     private var previousID: String?
+    private static let starters = [
+        MemeItem(id: "starter-snacks", title: "The snack committee", fileName: nil),
+        MemeItem(id: "starter-break", title: "A very serious reminder", fileName: nil),
+        MemeItem(id: "starter-paws", title: "Desktop ownership", fileName: nil),
+    ]
 
     init(directory: URL) {
         self.directory = directory.appendingPathComponent("Memes", isDirectory: true)
@@ -29,9 +34,15 @@ final class MemeLibrary: ObservableObject {
                 return Self.isOwnedFile(name) && FileManager.default.fileExists(atPath: self.directory.appendingPathComponent(name).path)
             }
         } else {
-            items = [MemeItem(id: "starter-snacks", title: "The snack committee", fileName: nil),
-                     MemeItem(id: "starter-break", title: "A very serious reminder", fileName: nil),
-                     MemeItem(id: "starter-paws", title: "Desktop ownership", fileName: nil)]
+            let files = (try? FileManager.default.contentsOfDirectory(at: self.directory, includingPropertiesForKeys: nil)) ?? []
+            items = Self.starters + files.filter { Self.isOwnedFile($0.lastPathComponent) }.sorted { $0.path < $1.path }.map {
+                MemeItem(id: $0.deletingPathExtension().lastPathComponent, title: "Recovered image", fileName: $0.lastPathComponent)
+            }
+            // Preserve the damaged index for recovery; never silently overwrite it.
+            if FileManager.default.fileExists(atPath: indexURL.path) {
+                let backup = self.directory.appendingPathComponent("library-corrupt-\(UUID().uuidString).json")
+                try? FileManager.default.copyItem(at: indexURL, to: backup)
+            }
         }
     }
 
@@ -59,36 +70,21 @@ final class MemeLibrary: ObservableObject {
         }
     }
 
-    func importFile(_ url: URL) throws -> MemeItem {
+    func importFile(_ url: URL) async throws -> MemeItem {
         guard items.count < 100 else { throw ImportError.stashFull }
-        let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-        guard size <= 25_000_000 else { throw ImportError.tooLarge }
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceThumbnailMaxPixelSize: 1600,
-                kCGImageSourceShouldCacheImmediately: true,
-              ] as CFDictionary) else { throw ImportError.notImage }
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        let id = UUID().uuidString
-        let fileName = id + ".png"
-        let destination = directory.appendingPathComponent(fileName)
-        guard let writer = CGImageDestinationCreateWithURL(destination as CFURL, UTType.png.identifier as CFString, 1, nil) else { throw ImportError.cannotSave }
-        CGImageDestinationAddImage(writer, image, nil)
-        guard CGImageDestinationFinalize(writer) else { throw ImportError.cannotSave }
-        let title = String(url.deletingPathExtension().lastPathComponent.prefix(60))
-        let item = MemeItem(id: id, title: title.isEmpty ? "A little delivery" : title, fileName: fileName)
+        let directory = directory
+        let item = try await Task.detached(priority: .userInitiated) { try MemeImageImport.copy(url, into: directory) }.value
+        guard items.count < 100 else {
+            if let name = item.fileName { try? FileManager.default.removeItem(at: directory.appendingPathComponent(name)) }
+            throw ImportError.stashFull
+        }
         items.append(item)
-        cache(NSImage(cgImage: image, size: .zero), id: id)
         save()
         return item
     }
 
     func restoreStarters() {
-        for item in [MemeItem(id: "starter-snacks", title: "The snack committee", fileName: nil),
-                     MemeItem(id: "starter-break", title: "A very serious reminder", fileName: nil),
-                     MemeItem(id: "starter-paws", title: "Desktop ownership", fileName: nil)] where !items.contains(where: { $0.id == item.id }) {
+        for item in Self.starters where !items.contains(where: { $0.id == item.id }) {
             items.append(item)
         }
         save()
@@ -97,12 +93,9 @@ final class MemeLibrary: ObservableObject {
     func importLink(_ text: String) async throws -> MemeItem {
         guard let url = URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
               url.scheme?.lowercased() == "https", url.host != nil else { throw ImportError.invalidLink }
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 25
-        let (temporary, response) = try await URLSession.shared.download(for: request)
+        let temporary = try await Task.detached(priority: .userInitiated) { try await MemeImageImport.download(url) }.value
         defer { try? FileManager.default.removeItem(at: temporary) }
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else { throw ImportError.downloadFailed }
-        let imported = try importFile(temporary)
+        let imported = try await importFile(temporary)
         if let index = items.firstIndex(where: { $0.id == imported.id }) {
             items[index].title = String(url.deletingPathExtension().lastPathComponent.prefix(60))
             save()

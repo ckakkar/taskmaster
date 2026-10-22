@@ -14,7 +14,7 @@ final class AppModel: ObservableObject {
                 self?.savePreferences()
             }
             desktop?.applyPreferences()
-            nextAutoMeme = Date().timeIntervalSince1970 + preferences.memeInterval
+            schedule?.configure(preferences: preferences, now: Date().timeIntervalSince1970)
         }
     }
     @Published var isPaused = false {
@@ -51,9 +51,8 @@ final class AppModel: ObservableObject {
     private let preferencesURL: URL
     private var lastSound: Double = -10
     private var saveTask: Task<Void, Never>?
-    private var focus = FocusSession()
+    private var schedule: CompanionSchedule?
     private var lastServiceSecond = 0
-    private var nextAutoMeme = Date().timeIntervalSince1970 + 600
 
     init(atlas: PetAtlas) {
         self.atlas = atlas
@@ -74,7 +73,7 @@ final class AppModel: ObservableObject {
             preferences = Preferences()
         }
         desktop = DesktopController(model: self, atlas: atlas)
-        nextAutoMeme = Date().timeIntervalSince1970 + preferences.memeInterval
+        schedule = CompanionSchedule(preferences: preferences, now: Date().timeIntervalSince1970)
     }
 
     func select(_ personality: Personality) {
@@ -83,12 +82,7 @@ final class AppModel: ObservableObject {
     }
 
     func perform(_ action: PetAction) {
-        if focusActive {
-            switch action {
-            case .pet, .treat, .saySomething: break
-            default: stopFocus()
-            }
-        }
+        if focusActive && CompanionSchedule.endsFocus(action) { stopFocus() }
         if isPaused { isPaused = false }
         if !isVisible { isVisible = true }
         desktop.engine.perform(action)
@@ -135,7 +129,7 @@ final class AppModel: ObservableObject {
     func bringMeme(_ item: MemeItem? = nil) {
         guard desktop.engine.delivery == nil else { return }
         guard let chosen = item ?? library.choose() else {
-            libraryMessage = "Add an image or enable a card in Miso’s meme stash first."
+            libraryMessage = "Add an image or enable a card in \(preferences.name)’s meme stash first."
             customize(.memes)
             return
         }
@@ -143,7 +137,7 @@ final class AppModel: ObservableObject {
         if isPaused { isPaused = false }
         if !isVisible { isVisible = true }
         desktop.deliver(memeID: chosen.id)
-        nextAutoMeme = Date().timeIntervalSince1970 + preferences.memeInterval
+        schedule?.didDeliver(at: Date().timeIntervalSince1970)
     }
 
     func putMemeAway() { desktop.engine.recallDelivery(); desktop.renderNow() }
@@ -153,24 +147,30 @@ final class AppModel: ObservableObject {
 
     func inviteCursorHeist() {
         desktop.engine.inviteCursorHeist()
-        chaosMessage = "Move your pointer near Miso at the bottom of the screen. Click or pull away to take it back."
+        chaosMessage = "Move your pointer near \(preferences.name) at the bottom of the screen. Click or pull away to take it back."
     }
 
     func importMemes() {
         let panel = NSOpenPanel()
-        panel.title = "Add to Miso’s meme stash"
+        panel.title = "Add to \(preferences.name)’s meme stash"
         panel.prompt = "Add images"
         panel.allowedContentTypes = [.image]
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.begin { [weak self] response in
             guard response == .OK, let self else { return }
-            var count = 0
-            for url in panel.urls {
-                do { _ = try self.library.importFile(url); count += 1 }
-                catch { self.libraryMessage = error.localizedDescription }
+            let urls = panel.urls
+            self.isImporting = true
+            Task {
+                defer { self.isImporting = false }
+                var count = 0
+                var failure: String?
+                for url in urls {
+                    do { _ = try await self.library.importFile(url); count += 1 }
+                    catch { failure = error.localizedDescription }
+                }
+                self.libraryMessage = "Added \(count) image\(count == 1 ? "" : "s")." + (failure.map { " " + $0 } ?? " Your originals stay where they are.")
             }
-            if count > 0 { self.libraryMessage = "Added \(count) image\(count == 1 ? "" : "s"). Your originals stay where they are." }
         }
     }
 
@@ -184,7 +184,7 @@ final class AppModel: ObservableObject {
             do {
                 _ = try await self.library.importLink(link)
                 self.imageLink = ""
-                self.libraryMessage = "Added that image to Miso’s stash."
+                self.libraryMessage = "Added that image to \(self.preferences.name)’s stash."
             } catch { self.libraryMessage = error.localizedDescription }
         }
     }
@@ -193,7 +193,7 @@ final class AppModel: ObservableObject {
         desktop.engine.cancelDelivery()
         desktop.engine.perform(.stopFollowing)
         desktop.engine.removeToy()
-        focus.start(minutes: preferences.focusMinutes, now: Date().timeIntervalSince1970)
+        schedule?.startFocus(minutes: preferences.focusMinutes, now: Date().timeIntervalSince1970)
         focusActive = true
         desktop.engine.isFocusing = true
         desktop.applyPreferences()
@@ -205,7 +205,7 @@ final class AppModel: ObservableObject {
     }
 
     func stopFocus() {
-        focus.cancel()
+        schedule?.endFocus()
         focusActive = false
         focusProgress = 0
         focusLabel = "A little company while you work."
@@ -219,24 +219,24 @@ final class AppModel: ObservableObject {
         let now = Date().timeIntervalSince1970
         guard Int(now) != lastServiceSecond else { return }
         lastServiceSecond = Int(now)
-        if focus.update(now: now) {
+        let update = schedule?.update(now: now, availability: .init(visible: isVisible, paused: isPaused,
+            readyForDelivery: desktop.engine.delivery == nil && desktop.engine.cursorHeist == nil
+                && desktop.engine.state != .sleeping && desktop.engine.state != .carried
+                && desktop.engine.state != .falling && !library.enabledItems.isEmpty))
+        if update?.focusCompleted == true {
             stopFocus()
             preferences.completedFocusSessions += 1
             desktop.engine.perform(.breakReminder)
             desktop.renderNow()
         }
-        if focus.isActive {
+        if let focus = schedule?.focus, focus.isActive {
             let remaining = Int(ceil(focus.remaining(at: now)))
             focusLabel = String(format: "%02d:%02d", remaining / 60, remaining % 60)
             focusProgress = focus.progress(at: now)
             desktop.scene.setFocus(text: focusLabel, progress: focusProgress)
             previews.forEach { $0.setFocus(text: focusLabel, progress: focusProgress) }
         }
-        if preferences.autoMemes, now >= nextAutoMeme, !focusActive, isVisible, !isPaused,
-           desktop.engine.delivery == nil, state != .sleeping, state != .carried, state != .falling {
-            nextAutoMeme = now + preferences.memeInterval
-            if !library.enabledItems.isEmpty { bringMeme() }
-        }
+        if update?.deliverMeme == true { bringMeme() }
     }
 
     func flushPreferences() { saveTask?.cancel(); savePreferences() }

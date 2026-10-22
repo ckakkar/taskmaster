@@ -41,7 +41,7 @@ final class DesktopController: NSObject {
         scene.library = model.library
         canvas = PetInteractionView(frame: CGRect(origin: .zero, size: screen.frame.size))
         super.init()
-        panel.title = "Miso · Taskmaster desktop companion"
+        panel.title = "\(model.preferences.name) · Taskmaster desktop companion"
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
@@ -208,7 +208,7 @@ final class DesktopController: NSObject {
         if CGWarpMouseCursorPosition(quartzPoint) == .success { lastWarp = point }
         else {
             engine.cancelCursorHeist(); lastWarp = nil
-            model.chaosMessage = "This Mac didn’t allow the cursor game. Miso will stick to muddy paws."
+            model.chaosMessage = "This Mac didn’t allow the cursor game. \(model.preferences.name) will stick to muddy paws."
         }
     }
 
@@ -217,6 +217,7 @@ final class DesktopController: NSObject {
         panel.setFrame(newScreen.frame, display: true)
         canvas.frame = CGRect(origin: .zero, size: newScreen.frame.size)
         scene.size = newScreen.frame.size
+        engine.cancelDelivery()
         engine.changeHabitat(Self.habitat(for: newScreen, scale: model.preferences.size))
     }
 
