@@ -155,6 +155,28 @@ tests, screenshots for visual changes, and an honest account of what you tried
 in the running app. Current verification and known limitations are recorded
 in the [handoff](docs/HANDOFF.md).
 
+## Repeatable performance checks
+
+Debug builds can hold a state for profiling without changing your normal setup:
+
+```sh
+make build
+.build/debug/Taskmaster --debug-avatar toothless --debug-state flying --quiet
+# Quit that instance before starting the full measurement matrix.
+python3 scripts/measure-performance.py
+python3 scripts/profile-performance.py
+```
+
+States are `sitting`, `walking`, `sleeping`, and `flying` (Toothless only).
+Omit `--quiet` to include the room. Release builds reject debug flags.
+The measurement script runs each supported combination for 60 seconds after
+a 10-second warm-up and stores raw results under `.local/performance/`.
+Profiling prefers Xcode's Time Profiler; without full Xcode it records a labeled
+`sample` fallback. Results, machine details and limits are in the
+[performance handoff](docs/HANDOFF.md#performance-baseline).
+That run also exposed eye-shader compilation errors on this Mac; the handoff
+records them for the next animation pass.
+
 ---
 
 <div align="center"><sub>Small paws. Big opinions. Made for the little moments between your work.</sub></div>

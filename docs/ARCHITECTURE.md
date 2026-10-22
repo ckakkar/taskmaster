@@ -25,6 +25,13 @@ for a suitable delivery opportunity. Ending focus restores finite decision timer
 
 ## Rendering and input
 
+`PetScene.swift` owns node setup and shared scene storage. Feature extensions
+separate the frame renderer (`+Rendering`), particles/pawprints/notes/speech
+(`+Effects`), meme card placement (`+Memes`) and hit-testing (`+HitTesting`).
+Their method bodies and animation constants are unchanged by the file split.
+The room's header, introduction, controls and footer live in separate extensions;
+each customization editor, shared controls and `PetPreview` has its own file.
+
 An AppKit nonactivating transparent panel contains a SpriteKit scene. It floats
 over normal windows without taking keyboard focus. Mouse input passes through
 unless an opaque character pixel or interactive prop is hit. Pawprints never
@@ -90,6 +97,14 @@ round trips, recovery, asynchronous import and streamed download limits, then
 runs `--self-check` without creating the app or windows. The resource check
 validates every shipped character frame and its landmarks. `make lint` enforces
 swift-format. GitHub Actions runs both on macOS.
+
+Debug-only `DebugLaunch` and `PetEngine+Debug` hold reproducible sitting,
+walking, sleeping and Toothless flying workloads. They preserve ordinary
+movement/rendering but bypass random activity decisions. Measurements use fresh
+isolated preferences, a fixed seed and the normal 60 Hz loop. Release builds
+contain no workload hook and reject debug launch flags. The `ps` runner measures
+cumulative CPU-time deltas and mean RSS; the separate profiler runner chooses
+the highest-CPU result so tracing does not contaminate the baseline.
 
 Unit tests do not certify animation feel, physical cursor release, power use,
 or multi-display input. Record those separately in [HANDOFF.md](HANDOFF.md).
