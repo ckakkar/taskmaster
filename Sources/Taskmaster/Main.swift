@@ -4,6 +4,17 @@ import CompanionCore
 @main
 enum TaskmasterApplication {
     @MainActor static func main() {
+        #if DEBUG
+            do { DebugLaunch.current = try DebugLaunch.parse(CommandLine.arguments) } catch {
+                FileHandle.standardError.write(Data("\(error.localizedDescription)\n".utf8))
+                exit(2)
+            }
+        #else
+            if CommandLine.arguments.contains(where: { $0.hasPrefix("--debug-") }) {
+                FileHandle.standardError.write(Data("Debug launch options require a debug build.\n".utf8))
+                exit(2)
+            }
+        #endif
         if CommandLine.arguments.contains("--self-check") {
             do {
                 for avatar in AvatarKind.available {

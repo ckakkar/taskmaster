@@ -32,6 +32,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             item.menu?.delegate = self
             statusItem = item
             if !CommandLine.arguments.contains("--quiet") { showRoom() }
+            #if DEBUG
+                try DebugLaunch.current?.writeReady(
+                    model: model, roomOpen: room?.isVisible == true)
+            #endif
         } catch {
             let alert = NSAlert()
             alert.messageText = "Your companion couldn’t find its way home."

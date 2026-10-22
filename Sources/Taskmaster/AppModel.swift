@@ -62,8 +62,17 @@ final class AppModel: ObservableObject {
         if let override = environment["TASKMASTER_STATE_DIR"] {
             directory = URL(fileURLWithPath: override, isDirectory: true)
         } else {
-            directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("Taskmaster", isDirectory: true)
+            #if DEBUG
+                if let launch = DebugLaunch.current {
+                    directory = launch.stateDirectory
+                } else {
+                    directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                        .appendingPathComponent("Taskmaster", isDirectory: true)
+                }
+            #else
+                directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                    .appendingPathComponent("Taskmaster", isDirectory: true)
+            #endif
         }
         preferencesURL = directory.appendingPathComponent("preferences.json")
         library = MemeLibrary(directory: directory)
@@ -74,6 +83,9 @@ final class AppModel: ObservableObject {
         } else {
             preferences = Preferences()
         }
+        #if DEBUG
+            if let launch = DebugLaunch.current { preferences = launch.preferences }
+        #endif
         atlasCache[atlas.avatar] = atlas
         if preferences.avatar != atlas.avatar {
             if let chosen = art(for: preferences.avatar) { self.atlas = chosen } else { preferences.avatar = .miso }

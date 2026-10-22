@@ -119,6 +119,9 @@ public struct PetEngine: Sendable {
     var aerialUntil: Double = 0
     var afterLanding: PetAction?
     var nextAerialAt: Double = 90
+    #if DEBUG
+        var debugState: DebugPetState?
+    #endif
 
     public init(habitat: Habitat, seed: UInt64 = UInt64.random(in: 1...UInt64.max)) {
         self.habitat = habitat
@@ -177,6 +180,12 @@ public struct PetEngine: Sendable {
         elapsed += dt
         stateAge += dt
         mischief = mischief.isFinite ? mischief.clamped(to: 0...1) : 0.25
+        #if DEBUG
+            if let debugState {
+                updateDebugState(debugState, dt: dt)
+                return
+            }
+        #endif
         updateToy(dt)
         if snack != nil {
             snack!.age += dt

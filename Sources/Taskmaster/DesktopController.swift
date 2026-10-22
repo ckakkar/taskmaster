@@ -61,6 +61,9 @@ final class DesktopController: NSObject {
         canvas.shouldCullNonVisibleNodes = true
         canvas.presentScene(scene)
         applyPreferences()
+        #if DEBUG
+            if let launch = DebugLaunch.current { engine.startDebugState(launch.state) }
+        #endif
         renderNow()
         panel.orderFrontRegardless()
 
