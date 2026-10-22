@@ -58,6 +58,7 @@ public enum Personality: String, CaseIterable, Codable, Sendable {
 
 public struct Preferences: Codable, Equatable, Sendable {
     public var name: String = "Miso"
+    public var avatar: AvatarKind = .miso
     public var mischief: Double = 0.25
     public var size: Double = 1
     public var sound: Bool = false
@@ -84,7 +85,7 @@ public struct Preferences: Codable, Equatable, Sendable {
     public init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case name, mischief, size, sound, allSpaces, quietWhenIdle, showName
+        case name, avatar, mischief, size, sound, allSpaces, quietWhenIdle, showName
         case customQuips, includeBuiltInQuips, chatter, bubbleStyle, speechSeconds
         case autoMemes, memeInterval, memeStaySeconds, focusMinutes, completedFocusSessions
         case coat, accessory, accessoryColor, muddyPaws, pawprintSeconds, cursorHeists
@@ -94,6 +95,7 @@ public struct Preferences: Codable, Equatable, Sendable {
         self.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
         name = try values.decodeIfPresent(String.self, forKey: .name) ?? name
+        avatar = (try? values.decode(AvatarKind.self, forKey: .avatar)) ?? avatar
         mischief = try values.decodeIfPresent(Double.self, forKey: .mischief) ?? mischief
         size = try values.decodeIfPresent(Double.self, forKey: .size) ?? size
         sound = try values.decodeIfPresent(Bool.self, forKey: .sound) ?? sound

@@ -3,7 +3,7 @@ import Foundation
 extension PetEngine {
     @discardableResult
     public mutating func beginCursorHeist(at cursor: Point) -> Bool {
-        guard allowsCursorHeists, mischief >= 0.75, !isPaused, !isFocusing,
+        guard aerialRoute == nil, allowsCursorHeists, mischief >= 0.75, !isPaused, !isFocusing,
             cursorHeist == nil, delivery == nil, toy == nil, snack == nil,
             state == .sitting || state == .idle || state == .walking,
             cursor.x.isFinite, cursor.y.isFinite,
@@ -63,7 +63,7 @@ extension PetEngine {
 
     mutating func observeCursor(_ cursor: Point?, contact: Bool, dt: Double) {
         defer { previousCursor = cursor }
-        guard delivery == nil, cursorHeist == nil, !isFocusing else { return }
+        guard aerialRoute == nil, delivery == nil, cursorHeist == nil, !isFocusing else { return }
         guard let cursor, let previousCursor else { return }
         let distance = cursor.distance(to: previousCursor)
         if contact {

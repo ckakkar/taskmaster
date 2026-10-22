@@ -2,7 +2,7 @@ import Foundation
 
 public enum PetState: String, CaseIterable, Sendable {
     case idle, walking, sitting, sleeping, carried, falling, happy, playing, scheming, curious, highFive, stretching,
-        sniffing
+        sniffing, flying, grappling
 
     public var description: String {
         switch self {
@@ -19,6 +19,8 @@ public enum PetState: String, CaseIterable, Sendable {
         case .highFive: "A tiny high five?"
         case .stretching: "A biiig little stretch"
         case .sniffing: "Sniffing out a snack"
+        case .flying: "A little dragon. A big sky."
+        case .grappling: "Keeping the desktop safe"
         }
     }
 }
@@ -28,7 +30,7 @@ public enum PetAction: Sendable {
     case comeHere(Double)
     case surprise
     case offerHighFive, followCursor, stopFollowing, findTreat, stretch, saySomething, breakReminder
-    case muddyZoomies
+    case muddyZoomies, signature
 }
 
 public enum PetEvent: Sendable {
@@ -67,6 +69,8 @@ public struct PetEngine: Sendable {
     public internal(set) var snack: Snack?
     public internal(set) var delivery: MemeDelivery?
     public internal(set) var cursorHeist: CursorHeist?
+    public internal(set) var aerialRoute: AerialRoute?
+    public var avatar: AvatarKind = .miso
     public var allowsCursorHeists = false { didSet { if !allowsCursorHeists { cancelCursorHeist() } } }
     public var muddyPaws = true
     public var visualScale: Double = 1
@@ -113,6 +117,8 @@ public struct PetEngine: Sendable {
     var muddyUntil: Double = 0
     var footprintX: Double?
     var rightFoot = false
+    var aerialUntil: Double = 0
+    var afterLanding: PetAction?
 
     public init(habitat: Habitat, seed: UInt64 = UInt64.random(in: 1...UInt64.max)) {
         self.habitat = habitat
@@ -123,6 +129,7 @@ public struct PetEngine: Sendable {
     }
 
     public mutating func changeHabitat(_ newHabitat: Habitat) {
+        if aerialRoute != nil { cancelAerialTour() }
         cancelCursorHeist()
         footprintX = nil
         habitat = newHabitat
@@ -174,6 +181,7 @@ public struct PetEngine: Sendable {
         }
 
         if state == .carried { return }
+        if updateAerial(dt) { return }
         if state == .falling {
             velocity.y -= 1_350 * dt
             position.x = (position.x + velocity.x * dt).clamped(to: habitat.left...habitat.right)
@@ -283,6 +291,28 @@ public struct PetEngine: Sendable {
     }
 
     public mutating func perform(_ action: PetAction) {
+        if aerialRoute != nil {
+            switch action {
+            case .pet, .treat:
+                interactionCount += 1
+                events.append(.hearts(position))
+                return
+            case .saySomething:
+                speak("The view is pretty good up here.")
+                return
+            case .signature:
+                aerialUntil = elapsed + 25
+                return
+            case .followCursor:
+                manualFollowUntil = elapsed + 60
+                aerialUntil = elapsed + 60
+                return
+            default:
+                afterLanding = action
+                landAerialTour()
+                return
+            }
+        }
         interactionCount += 1
         let speaking: Bool = if case .saySomething = action { true } else { false }
         if !speaking {
@@ -339,6 +369,12 @@ public struct PetEngine: Sendable {
             speak("Your turn!")
         case .followCursor:
             toy = nil
+            if avatar != .miso {
+                startAerialTour()
+                manualFollowUntil = elapsed + 60
+                aerialUntil = elapsed + 60
+                break
+            }
             manualFollowUntil = elapsed + 60
             transition(to: .sitting, for: 1)
             speak("Lead the way.")
@@ -367,10 +403,13 @@ public struct PetEngine: Sendable {
             targetX = position.x > middle ? habitat.left + 30 : habitat.right - 30
             transition(to: .walking, for: 1)
             speak("I have made several artistic decisions.")
+        case .signature:
+            if avatar == .miso { perform(.muddyZoomies) } else { startAerialTour() }
         }
     }
 
     public mutating func beginDrag(at pointer: Point) {
+        cancelAerialTour()
         cancelCursorHeist()
         cancelDelivery()
         isUserNap = false
@@ -440,6 +479,10 @@ public struct PetEngine: Sendable {
 
     mutating func decide(cursor: Point?) {
         let roll = random.unit()
+        if avatar != .miso, mischief > 0.3, roll < 0.38 {
+            startAerialTour()
+            return
+        }
         if mischief > 0.45, elapsed - lastPrank > 28, roll < 0.16 + mischief * 0.12 {
             makeMischief()
         } else if roll < 0.22 && mischief < 0.35 {

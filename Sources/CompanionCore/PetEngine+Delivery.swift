@@ -4,6 +4,7 @@ extension PetEngine {
     public mutating func beginDelivery(memeID: String, screenLeft: Double, screenRight: Double, staySeconds: Double) {
         guard delivery == nil, screenLeft.isFinite, screenRight.isFinite, screenRight > screenLeft else { return }
         cancelCursorHeist()
+        if aerialRoute != nil { landAerialTour() }
         toy = nil
         snack = nil
         isUserNap = false
@@ -18,7 +19,7 @@ extension PetEngine {
             dropPetX: drop, cardPosition: Point(x: drop - direction * 200, y: habitat.floor + 12),
             legStartX: position.x, targetX: exit,
             staySeconds: staySeconds.isFinite ? staySeconds.clamped(to: 8...120) : 20)
-        transition(to: .walking, for: .infinity)
+        transition(to: aerialRoute == nil ? .walking : avatar == .toothless ? .flying : .grappling, for: .infinity)
     }
 
     public mutating func recallDelivery() {

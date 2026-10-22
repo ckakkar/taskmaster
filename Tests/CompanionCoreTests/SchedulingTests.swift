@@ -103,6 +103,7 @@ private let available = CompanionSchedule.Availability(visible: true, paused: fa
 @Test func everyPreferenceIsEncodedAndAllNonDefaultValuesReload() throws {
     var p = Preferences()
     p.name = "Juniper"
+    p.avatar = .toothless
     p.mischief = 0.9
     p.size = 1.4
     p.sound = true
