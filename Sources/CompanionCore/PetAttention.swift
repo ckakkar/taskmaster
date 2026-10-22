@@ -8,6 +8,10 @@ public struct PetAttention: Sendable {
     public private(set) var earFlick: Double = 0
     public private(set) var time: Double = 0
     public private(set) var isWatching = false
+    public private(set) var engagement: Double = 0
+    private var headX = MotionSpring()
+    private var headY = MotionSpring()
+    private var interest = MotionSpring()
     private var random: RandomStream
     private var nextBlink: Double
     private var blinkStarted: Double = -100
@@ -30,11 +34,14 @@ public struct PetAttention: Sendable {
             y: (target?.y ?? 0).clamped(to: -1...1)
         )
         // Fast enough to acknowledge a person, soft enough to avoid a mechanical snap.
-        let follow = 1 - exp(-dt * (isWatching ? 7.5 : 2.8))
+        let follow = 1 - exp(-dt * (isWatching ? 12 : 3.5))
         gaze.x += (destination.x - gaze.x) * follow
         gaze.y += (destination.y - gaze.y) * follow
-        let tilt = reducedMotion || asleep ? 0 : gaze.x * 0.035 + gaze.y * 0.018
-        headTilt += (tilt - headTilt) * (1 - exp(-dt * 3.5))
+        headX.advance(to: destination.x, seconds: dt, response: 7)
+        headY.advance(to: destination.y, seconds: dt, response: 6)
+        interest.advance(to: isWatching ? 1 : 0, seconds: dt, response: 6)
+        engagement = interest.value
+        headTilt = reducedMotion || asleep ? 0 : headX.value * 0.065 + headY.value * 0.03
 
         if time >= nextBlink && !asleep {
             blinkStarted = time

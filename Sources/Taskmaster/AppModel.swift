@@ -18,6 +18,7 @@ final class AppModel: ObservableObject {
     }
     @Published private(set) var state: PetState = .sitting
     @Published private(set) var interactions = 0
+    @Published private(set) var isFollowingCursor = false
     @Published var showPreferences = false
 
     let atlas: PetAtlas
@@ -65,6 +66,7 @@ final class AppModel: ObservableObject {
         let engine = desktop.engine
         if state != engine.state { state = engine.state }
         if interactions != engine.interactionCount { interactions = engine.interactionCount }
+        if isFollowingCursor != engine.isFollowingCursor { isFollowingCursor = engine.isFollowingCursor }
     }
 
     func playSound() {

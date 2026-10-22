@@ -52,7 +52,7 @@ final class DesktopController: NSObject {
         panel.contentView = canvas
         canvas.driver = self
         canvas.allowsTransparency = true
-        canvas.preferredFramesPerSecond = 30
+        canvas.preferredFramesPerSecond = 60
         canvas.ignoresSiblingOrder = true
         canvas.shouldCullNonVisibleNodes = true
         canvas.presentScene(scene)
@@ -60,7 +60,8 @@ final class DesktopController: NSObject {
         renderNow()
         panel.orderFrontRegardless()
 
-        let timer = Timer(timeInterval: 1.0 / 30, target: self, selector: #selector(tick), userInfo: nil, repeats: true)
+        let timer = Timer(timeInterval: 1.0 / 60, target: self, selector: #selector(tick), userInfo: nil, repeats: true)
+        timer.tolerance = 0.002
         self.timer = timer
         RunLoop.main.add(timer, forMode: .common)
         NotificationCenter.default.addObserver(self, selector: #selector(displaysChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
@@ -110,6 +111,12 @@ final class DesktopController: NSObject {
         renderNow()
     }
 
+    func callToPointer() {
+        let pointer = NSEvent.mouseLocation
+        if let target = NSScreen.screens.first(where: { $0.frame.contains(pointer) }), target != screen { move(to: target) }
+        model.perform(.comeHere(pointer.x))
+    }
+
     func showContextMenu(event: NSEvent, view: NSView) {
         guard let menu = contextMenu?() else { return }
         NSMenu.popUpContextMenu(menu, with: event, for: view)
@@ -128,21 +135,23 @@ final class DesktopController: NSObject {
             engine.tick(seconds: dt, cursor: Point(x: pointer.x, y: pointer.y), userIdle: idle,
                         cursorContact: !isDragging && scene.hitPet(localPoint))
         }
-        scene.render(
-            engine: engine, preferences: model.preferences, origin: screen.frame.origin,
-            reducedMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        )
-        model.previewScene?.render(
-            engine: engine, preferences: model.preferences, origin: .zero,
-            reducedMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        )
+        if model.isVisible {
+            scene.render(
+                engine: engine, preferences: model.preferences, origin: screen.frame.origin,
+                reducedMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            )
+        }
+        if let preview = model.previewScene, preview.view?.window?.isVisible == true {
+            preview.render(engine: engine, preferences: model.preferences, origin: .zero,
+                           reducedMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+        }
         let events = engine.drainEvents()
         scene.handle(events)
         model.previewScene?.handle(events)
-        let interactive = scene.hitPet(localPoint) || scene.hitBall(localPoint) || scene.hitNote(localPoint)
+        let interactive = scene.hitPet(localPoint) || scene.hitPaw(localPoint) || scene.hitBall(localPoint) || scene.hitNote(localPoint)
         panel.ignoresMouseEvents = !(isDragging || interactive)
         presentationTick += 1
-        if presentationTick % 6 == 0 { model.syncPresentation() }
+        if presentationTick % 12 == 0 { model.syncPresentation() }
     }
 
     private func move(to newScreen: NSScreen) {
@@ -203,7 +212,7 @@ final class PetInteractionView: SKView {
             target = .ball
             driver.engine.holdToy(at: Point(x: start.x, y: start.y))
             driver.isDragging = true
-        } else if driver.scene.hitPet(point) {
+        } else if driver.scene.hitPet(point) || driver.scene.hitPaw(point) {
             target = .pet
             if event.clickCount == 2 { driver.model.openRoom?() }
         }

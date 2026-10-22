@@ -20,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                     }, "Eye landmarks must remain inside their trimmed character frame.")
                     return "\(pose): \(frame.width)×\(frame.height), \(frame.eyes.count) animated eyes"
                 }
-                print("Taskmaster self-check passed: all nine transparent character frames loaded.")
+                print("Taskmaster self-check passed: all \(PetPose.allCases.count) transparent character frames loaded.")
                 sizes.forEach { print($0) }
                 NSApp.terminate(nil)
                 return
@@ -62,7 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         guard let model else { return }
         if room == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 840, height: 650),
+                contentRect: NSRect(x: 0, y: 0, width: 840, height: 745),
                 styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
                 backing: .buffered, defer: false
             )
@@ -75,6 +75,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             window.contentView = NSHostingView(rootView: CompanionRoom(model: model))
             window.center()
             window.setFrameAutosaveName("CompanionRoom")
+            window.contentMinSize = NSSize(width: 790, height: 720)
+            if window.contentLayoutRect.height < 720 { window.setContentSize(NSSize(width: 840, height: 745)) }
             room = window
         }
         NSApp.activate(ignoringOtherApps: true)
@@ -110,10 +112,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         }
         mood.submenu = moods
         menu.addItem(mood)
+        add(model.state == .highFive ? "Return the high five" : "Pet \(model.preferences.sanitized().name)", action: #selector(pet), to: menu, symbol: "heart")
         add("Give a treat", action: #selector(treat), to: menu, symbol: "carrot")
         add("Play with a ball", action: #selector(play), to: menu, symbol: "tennisball")
         add(model.state == .sleeping ? "Wake up gently" : "Time for a nap", action: #selector(nap), to: menu, symbol: "moon.zzz")
         add("A little surprise", action: #selector(surprise), to: menu, symbol: "sparkles")
+        add("A tiny high five", action: #selector(highFive), to: menu, symbol: "hand.raised.fill")
+        add(model.isFollowingCursor ? "Stop following the cursor" : "Follow my cursor for a minute", action: #selector(follow), to: menu, symbol: "cursorarrow.motionlines")
+        add("Find a hidden snack", action: #selector(findTreat), to: menu, symbol: "sparkle.magnifyingglass")
+        add("Come to this screen", action: #selector(comeHere), to: menu, symbol: "arrow.down.to.line")
+        add("Have a stretch", action: #selector(stretch), to: menu, symbol: "figure.flexibility")
         menu.addItem(.separator())
         add(model.isPaused ? "Let’s wander" : "Settle down", action: #selector(pause), to: menu, symbol: model.isPaused ? "play" : "pause")
         add(model.isVisible ? "Tuck away" : "Bring back", action: #selector(toggleVisible), to: menu, symbol: model.isVisible ? "eye.slash" : "eye")
@@ -153,9 +161,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     @objc private func selectMood(_ item: NSMenuItem) { model?.select(Personality.allCases[item.tag]) }
     @objc private func treat() { model?.perform(.treat) }
+    @objc private func pet() { model?.perform(.pet) }
     @objc private func play() { model?.perform(.play) }
     @objc private func nap() { model?.toggleNap() }
     @objc private func surprise() { model?.perform(.surprise) }
+    @objc private func highFive() { model?.perform(.offerHighFive) }
+    @objc private func follow() {
+        guard let model else { return }
+        model.perform(model.isFollowingCursor ? .stopFollowing : .followCursor)
+    }
+    @objc private func findTreat() { model?.perform(.findTreat) }
+    @objc private func comeHere() { model?.desktop.callToPointer() }
+    @objc private func stretch() { model?.perform(.stretch) }
     @objc private func pause() { model?.isPaused.toggle() }
     @objc private func toggleVisible() { model?.isVisible.toggle() }
     @objc private func quit() { NSApp.terminate(nil) }

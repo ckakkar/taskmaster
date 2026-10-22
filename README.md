@@ -21,6 +21,10 @@ Built with Swift, AppKit, SwiftUI and SpriteKit. macOS 14 or newer.
   Cozy stays peaceful. The companion room responds to your cursor too.
 - **Little rituals.** Treats bring happy reactions and crumbs. Petting brings
   hearts. Play creates a ball you can pick up and throw; Miso chases and bats it.
+- **Tiny games.** Offer a high five and click the raised paw. “Follow me” starts
+  a one-minute cursor game, with “Stay here” to stop. “Find a snack” sends Miso
+  off to sniff out and eat a biscuit. The menu also has stretches and a call
+  to bring Miso to the screen you’re using.
 - **A little chaos.** The panda brings silly notes and leaves temporary
   pawprints. Its props belong to the app; your documents stay out of the game.
 - **A calm companion room.** Change personality, name, size and sound effects,
@@ -32,8 +36,10 @@ Built with Swift, AppKit, SwiftUI and SpriteKit. macOS 14 or newer.
   Motion, and sleeps when the display does. Idle naps are optional.
 - **Local.** No account, backend, API key or runtime network connection.
 
-The character uses nine original generated poses, with a soft deformation rig,
+The character uses ten original generated poses, with a soft deformation rig,
 animated eyes, breathing, pose transitions, reactions, particles and physics.
+The 60 Hz loop uses continuous leg motion, eased acceleration and braking,
+spring-based landings, and gentle turns instead of flipping between walk frames.
 This is a first playable version;
 window-top perching, additional species and longer animation sequences are
 future work.
@@ -56,7 +62,8 @@ It is not notarized. Distribution signing and automatic updates are not set up.
 
 For debugging without a bundle, `make build` then run
 `.build/debug/Taskmaster`. `--quiet` opens only the desktop pet and menu-bar
-controls. `--self-check` verifies that all nine character textures load.
+controls. `--self-check` verifies that all ten character textures and their eye
+landmarks load.
 
 ## Preferences
 

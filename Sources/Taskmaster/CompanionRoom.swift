@@ -27,7 +27,7 @@ struct CompanionRoom: View {
         .padding(.horizontal, 34)
         .padding(.top, 47)
         .padding(.bottom, 25)
-        .frame(minWidth: 790, minHeight: 610)
+        .frame(minWidth: 790, minHeight: 710)
         .background(Palette.paper)
         .foregroundStyle(Palette.ink)
         .tint(Palette.orange)
@@ -93,11 +93,15 @@ struct CompanionRoom: View {
                 .padding(22)
                 PetPreview(model: model)
                     .padding(.top, 35)
-                    .accessibilityLabel("\(model.preferences.name), your red panda. Click to pet.")
+                    .accessibilityLabel(model.state == .highFive
+                        ? "\(model.preferences.name) offers a high five. Press to return it."
+                        : "\(model.preferences.name), your red panda. Press to pet.")
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityAction { model.perform(.pet) }
                 HStack(spacing: 5) {
                     Image(systemName: model.state == .sleeping ? "moon.zzz.fill" : "heart.fill")
                         .font(.system(size: 9))
-                    Text(model.isPaused ? "Just being here" : model.state.description)
+                    Text(model.isPaused ? "Just being here" : model.isFollowingCursor ? "Following your little arrow" : model.state.description)
                         .font(.system(size: 10, weight: .medium))
                 }
                 .foregroundStyle(Palette.secondary)
@@ -111,7 +115,7 @@ struct CompanionRoom: View {
 
             HStack(spacing: 7) {
                 Image(systemName: "hand.draw").font(.system(size: 13))
-                Text("Move your cursor close. Stroke gently.").font(.system(size: 11))
+                Text(model.state == .highFive ? "Click the raised paw. Tiny teamwork." : "Move your cursor close. Stroke gently.").font(.system(size: 11))
             }
             .foregroundStyle(Palette.secondary)
             .frame(maxWidth: .infinity)
@@ -161,7 +165,7 @@ struct CompanionRoom: View {
                     .foregroundStyle(Palette.secondary)
                 Spacer()
                 if model.interactions > 0 {
-                    Text("\(model.interactions) happy moments")
+                    Text("\(model.interactions) little moments")
                         .font(.system(size: 9))
                         .foregroundStyle(Palette.secondary)
                 }
@@ -170,6 +174,13 @@ struct CompanionRoom: View {
                 RitualButton(title: "Treat", symbol: "carrot.fill") { model.perform(.treat) }
                 RitualButton(title: "Play", symbol: "tennisball.fill") { model.perform(.play) }
                 RitualButton(title: model.state == .sleeping ? "Wake" : "Nap", symbol: model.state == .sleeping ? "sun.max.fill" : "moon.zzz.fill") { model.toggleNap() }
+            }
+            HStack(spacing: 9) {
+                RitualButton(title: "High five", symbol: "hand.raised.fingers.spread.fill", hint: "Offer a high five, then click the raised paw.") { model.perform(.offerHighFive) }
+                RitualButton(title: model.isFollowingCursor ? "Stay here" : "Follow me", symbol: "cursorarrow.motionlines", hint: "Miso follows your cursor along the desktop for a minute. Click Stay here to stop.") {
+                    model.perform(model.isFollowingCursor ? .stopFollowing : .followCursor)
+                }
+                RitualButton(title: "Find a snack", symbol: "sparkle.magnifyingglass", hint: "Watch Miso find and eat a little biscuit.") { model.perform(.findTreat) }
             }
         }
     }
@@ -243,6 +254,7 @@ private struct PersonalityCard: View {
 private struct RitualButton: View {
     let title: String
     let symbol: String
+    var hint: String? = nil
     let action: () -> Void
 
     var body: some View {
@@ -258,6 +270,7 @@ private struct RitualButton: View {
             .contentShape(RoundedRectangle(cornerRadius: 13))
         }
         .buttonStyle(.plain)
+        .help(hint ?? title)
         .onHover { if $0 { NSCursor.pointingHand.set() } else { NSCursor.arrow.set() } }
     }
 }
@@ -333,7 +346,7 @@ private struct PetPreview: NSViewRepresentable {
         let view = PreviewView()
         view.model = model
         view.allowsTransparency = true
-        view.preferredFramesPerSecond = 30
+        view.preferredFramesPerSecond = 60
         view.ignoresSiblingOrder = true
         let scene = PetScene(size: CGSize(width: 360, height: 260), atlas: model.atlas, preview: true)
         view.presentScene(scene)
@@ -374,7 +387,8 @@ private struct PetPreview: NSViewRepresentable {
         override func mouseDragged(with event: NSEvent) { mouseMoved(with: event) }
         override func mouseDown(with event: NSEvent) {
             guard let scene = scene as? PetScene,
-                  scene.hitPet(scene.convertPoint(fromView: convert(event.locationInWindow, from: nil))) else { return }
+                  (scene.hitPet(scene.convertPoint(fromView: convert(event.locationInWindow, from: nil)))
+                    || scene.hitPaw(scene.convertPoint(fromView: convert(event.locationInWindow, from: nil)))) else { return }
             lastPointer = convert(event.locationInWindow, from: nil)
             model?.perform(.pet)
         }

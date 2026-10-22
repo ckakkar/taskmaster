@@ -1,7 +1,7 @@
 import Foundation
 
 public enum PetState: String, CaseIterable, Sendable {
-    case idle, walking, sitting, sleeping, carried, falling, happy, playing, scheming, curious
+    case idle, walking, sitting, sleeping, carried, falling, happy, playing, scheming, curious, highFive, stretching, sniffing
 
     public var description: String {
         switch self {
@@ -15,12 +15,16 @@ public enum PetState: String, CaseIterable, Sendable {
         case .playing: "Important ball business"
         case .scheming: "Probably up to something"
         case .curious: "What’s that little thing?"
+        case .highFive: "A tiny high five?"
+        case .stretching: "A biiig little stretch"
+        case .sniffing: "Sniffing out a snack"
         }
     }
 }
 
 public enum PetAction: Sendable {
     case pet, treat, play, nap, wake, comeHere(Double), surprise
+    case offerHighFive, followCursor, stopFollowing, findTreat, stretch
 }
 
 public enum PetEvent: Sendable {
@@ -31,6 +35,7 @@ public enum PetEvent: Sendable {
     case note(Point, String)
     case speech(String)
     case toyHit(Point)
+    case highFive(Point)
 }
 
 public struct Toy: Equatable, Sendable {
@@ -38,6 +43,11 @@ public struct Toy: Equatable, Sendable {
     public var velocity: Point
     public var age: Double = 0
     public var isHeld: Bool = false
+}
+
+public struct Snack: Equatable, Sendable {
+    public var position: Point
+    public var age: Double = 0
 }
 
 public struct PetEngine: Sendable {
@@ -49,6 +59,8 @@ public struct PetEngine: Sendable {
     public private(set) var elapsed: Double = 0
     public private(set) var facingRight = false
     public private(set) var toy: Toy?
+    public private(set) var snack: Snack?
+    public var isFollowingCursor: Bool { elapsed < manualFollowUntil }
     public private(set) var interactionCount = 0
     public private(set) var affection: Double = 0.25
     public var mischief: Double = 0.25
@@ -71,6 +83,7 @@ public struct PetEngine: Sendable {
     private var lastCursorGame: Double = -10
     private var strokeDistance: Double = 0
     private var lastStroke: Double = -2
+    private var manualFollowUntil: Double = 0
 
     public init(habitat: Habitat, seed: UInt64 = UInt64.random(in: 1...UInt64.max)) {
         self.habitat = habitat
@@ -92,6 +105,10 @@ public struct PetEngine: Sendable {
             ball.position.y = max(habitat.floor + 12, ball.position.y)
             toy = ball
         }
+        if var snack {
+            snack.position = Point(x: snack.position.x.clamped(to: habitat.left...habitat.right), y: habitat.floor + 7)
+            self.snack = snack
+        }
     }
 
     public mutating func tick(seconds: Double, cursor: Point? = nil, userIdle: Double = 0, cursorContact: Bool = false) {
@@ -101,6 +118,10 @@ public struct PetEngine: Sendable {
         stateAge += dt
         mischief = mischief.isFinite ? mischief.clamped(to: 0...1) : 0.25
         updateToy(dt)
+        if snack != nil {
+            snack!.age += dt
+            if snack!.age > 45 { snack = nil }
+        }
         observeCursor(cursor, contact: cursorContact, dt: dt)
 
         if state == .carried { return }
@@ -123,6 +144,10 @@ public struct PetEngine: Sendable {
             }
             return
         }
+        if state == .highFive || state == .stretching {
+            if elapsed >= releaseAt { transition(to: .sitting, for: 5) }
+            return
+        }
         if quietWhenIdle && userIdle > 300 && toy == nil {
             transition(to: .sleeping, for: 30)
             return
@@ -135,6 +160,23 @@ public struct PetEngine: Sendable {
             if elapsed >= releaseAt { transition(to: .walking, for: 1) }
             return
         }
+        if let snack {
+            let distance = snack.position.x - position.x
+            if abs(distance) > 30 {
+                walk(toward: snack.position.x, dt: dt, speed: 80 + 30 * mischief)
+            } else if state != .sniffing {
+                velocity = .zero
+                transition(to: .sniffing, for: 1.2)
+            } else if elapsed >= releaseAt {
+                self.snack = nil
+                affection = min(1, affection + 0.07)
+                transition(to: .happy, for: 3.2)
+                events.append(.crumbs(position))
+                events.append(.speech("Found it. Mine now."))
+            }
+            return
+        }
+        if state == .sniffing { transition(to: .sitting, for: 4) }
         if let ball = toy, !ball.isHeld, ball.age < 24 {
             targetX = ball.position.x.clamped(to: habitat.left...habitat.right)
             let distance = targetX - position.x
@@ -155,8 +197,9 @@ public struct PetEngine: Sendable {
             return
         }
         if state == .playing { transition(to: .sitting, for: 4) }
-        if elapsed < followingCursorUntil, let cursor {
-            targetX = cursor.x.clamped(to: habitat.left...habitat.right)
+        if (elapsed < followingCursorUntil || isFollowingCursor), let cursor {
+            let direction = cursor.x >= position.x ? 1.0 : -1.0
+            targetX = (cursor.x - direction * 38).clamped(to: habitat.left...habitat.right)
             if abs(targetX - position.x) > 45 {
                 walk(toward: targetX, dt: dt, speed: 95 + mischief * 45)
             } else if state == .walking {
@@ -183,14 +226,18 @@ public struct PetEngine: Sendable {
         affection = min(1, affection + 0.055)
         isUserNap = false
         followingCursorUntil = 0
+        manualFollowUntil = 0
+        snack = nil
         cursorInterest = 0
         if state == .carried { return }
         if state == .falling { position.y = habitat.floor }
         velocity = .zero
         switch action {
         case .pet:
+            let wasHighFive = state == .highFive
             transition(to: .happy, for: 2.8)
-            events.append(.hearts(position))
+            events.append(wasHighFive ? .highFive(position) : .hearts(position))
+            if wasHighFive { events.append(.speech("We make a good team.")) }
         case .treat:
             transition(to: .happy, for: 4)
             events.append(.crumbs(position))
@@ -214,6 +261,27 @@ public struct PetEngine: Sendable {
             transition(to: .walking, for: 1)
         case .surprise:
             makeMischief()
+        case .offerHighFive:
+            toy = nil
+            transition(to: .highFive, for: 10)
+            events.append(.speech("Your turn!"))
+        case .followCursor:
+            toy = nil
+            manualFollowUntil = elapsed + 60
+            transition(to: .sitting, for: 1)
+            events.append(.speech("Lead the way."))
+        case .stopFollowing:
+            transition(to: .sitting, for: 6)
+        case .findTreat:
+            toy = nil
+            let direction = position.x > (habitat.left + habitat.right) / 2 ? -1.0 : 1.0
+            let x = (position.x + direction * random.value(in: 160...330)).clamped(to: habitat.left...habitat.right)
+            snack = Snack(position: Point(x: x, y: habitat.floor + 7))
+            transition(to: .curious, for: 0.6)
+            events.append(.speech("I smell something good."))
+        case .stretch:
+            toy = nil
+            transition(to: .stretching, for: 3.2)
         }
     }
 
@@ -231,6 +299,9 @@ public struct PetEngine: Sendable {
 
     public mutating func beginDrag(at pointer: Point) {
         isUserNap = false
+        manualFollowUntil = 0
+        followingCursorUntil = 0
+        snack = nil
         dragOffset = Point(x: position.x - pointer.x, y: position.y - pointer.y)
         velocity = .zero
         transition(to: .carried, for: .infinity)
@@ -279,6 +350,7 @@ public struct PetEngine: Sendable {
 
     private mutating func transition(to next: PetState, for duration: Double) {
         state = next
+        if next != .walking && next != .carried && next != .falling { velocity = .zero }
         stateAge = 0
         releaseAt = elapsed + duration
         decisionAt = releaseAt
@@ -296,7 +368,10 @@ public struct PetEngine: Sendable {
         strokeDistance = max(0, strokeDistance - dt * 70)
         let nearby = abs(cursor.x - position.x) < 290
             && cursor.y > habitat.floor && cursor.y < habitat.floor + 270
-        guard mischief > 0.3, toy == nil, nearby, distance > 1, distance < 65,
+        if nearby, (state == .sitting || state == .idle), abs(cursor.x - position.x) > 95 {
+            facingRight = cursor.x > position.x
+        }
+        guard mischief > 0.3, toy == nil, snack == nil, !isFollowingCursor, nearby, distance > 1, distance < 65,
               state == .sitting || state == .idle || state == .walking,
               elapsed - lastCursorGame > 8 else {
             cursorInterest = max(0, cursorInterest - dt * 2)
@@ -317,9 +392,18 @@ public struct PetEngine: Sendable {
     private mutating func walk(toward x: Double, dt: Double, speed: Double) {
         if state != .walking { transition(to: .walking, for: 1) }
         let direction = x > position.x ? 1.0 : -1.0
-        facingRight = direction > 0
-        velocity.x = direction * speed
-        position.x += direction * min(abs(x - position.x), speed * dt)
+        let distance = abs(x - position.x)
+        let desired = direction * min(speed, sqrt(2 * 380 * distance))
+        let acceleration = 400 + mischief * 220
+        velocity.x += (desired - velocity.x).clamped(to: -acceleration * dt...acceleration * dt)
+        if abs(velocity.x) > 8 { facingRight = velocity.x > 0 }
+        let step = velocity.x * dt
+        if step * direction > 0 && abs(step) >= distance {
+            position.x = x
+            velocity.x = 0
+        } else {
+            position.x += step
+        }
         position.x = position.x.clamped(to: habitat.left...habitat.right)
         position.y = habitat.floor
         if mischief > 0.72, elapsed - lastPrank < 8, elapsed > nextFootprint {
@@ -343,7 +427,7 @@ public struct PetEngine: Sendable {
             }
             transition(to: .walking, for: 1)
         } else {
-            transition(to: .idle, for: random.value(in: 4...9))
+            transition(to: roll > 0.91 ? .stretching : .idle, for: roll > 0.91 ? 3.2 : random.value(in: 4...9))
         }
     }
 

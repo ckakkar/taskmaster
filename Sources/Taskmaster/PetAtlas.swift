@@ -3,7 +3,7 @@ import SpriteKit
 import CompanionCore
 
 enum PetPose: Int, CaseIterable {
-    case standing, walkA, walkB, sitting, sleeping, carried, delighted, playBow, mischievous
+    case standing, walkA, walkB, sitting, sleeping, carried, delighted, playBow, mischievous, highFive
 }
 
 @MainActor
@@ -29,6 +29,8 @@ final class PetAtlas {
         let width: Int
         let height: Int
         let eyes: [Eye]
+        var artworkScale: Double = 1
+        var paw: SIMD2<Float>? = nil
 
         func contains(x: Double, y: Double) -> Bool {
             guard x >= 0, y >= 0, x < 1, y < 1 else { return false }
@@ -57,10 +59,10 @@ final class PetAtlas {
         else { throw ArtError.missingAtlas }
         guard let layoutURL = resources.url(forResource: "MisoAtlas", withExtension: "json") else { throw ArtError.missingAtlas }
         let layout = try JSONDecoder().decode(Layout.self, from: Data(contentsOf: layoutURL))
-        guard layout.frames.count == PetPose.allCases.count,
+        guard layout.frames.count == 9,
               layout.sourceWidth > 0, layout.sourceHeight > 0 else { throw ArtError.invalidFrame }
 
-        for pose in PetPose.allCases {
+        for pose in PetPose.allCases where pose != .highFive {
             let region = layout.frames[pose.rawValue]
             let sx = Double(sheet.width) / layout.sourceWidth, sy = Double(sheet.height) / layout.sourceHeight
             let rectangle = CGRect(x: region.x * sx, y: region.y * sy, width: region.width * sx, height: region.height * sy).integral
@@ -89,8 +91,32 @@ final class PetAtlas {
                 }
             )
         }
+        // The new gesture has its own transparent image and scale reference.
+        if let url = resources.url(forResource: "MisoHighFive", withExtension: "png"),
+           let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+           let image = CGImageSourceCreateImageAtIndex(source, 0, nil) {
+            let bounds = Self.opaqueBounds(Self.rgba(image), width: image.width, height: image.height)
+            guard let trimmed = image.cropping(to: bounds) else { throw ArtError.invalidFrame }
+            let data = Self.rgba(trimmed)
+            let texture = SKTexture(cgImage: trimmed)
+            texture.filteringMode = .linear
+            func landmark(_ x: Double, _ y: Double) -> SIMD2<Float> {
+                let px = x / 1254 * Double(image.width) - bounds.minX
+                let py = y / 1254 * Double(image.height) - bounds.minY
+                return SIMD2(Float(px / Double(trimmed.width)), Float(1 - py / Double(trimmed.height)))
+            }
+            let eyes = [Frame.Eye(center: landmark(704, 430), radius: Float(37.0 / 1254 * Double(image.width))),
+                        Frame.Eye(center: landmark(849, 369), radius: Float(32.0 / 1254 * Double(image.width)))]
+            let artworkScale = Double(frames[.sitting]!.height) * 1.08 / Double(trimmed.height)
+            frames[.highFive] = Frame(image: trimmed, texture: texture,
+                alpha: stride(from: 3, to: data.count, by: 4).map { data[$0] },
+                width: trimmed.width, height: trimmed.height, eyes: eyes,
+                artworkScale: artworkScale, paw: landmark(1090, 390))
+        } else {
+            throw ArtError.missingAtlas
+        }
         standingHeight = Double(frames[.standing]?.height ?? 300)
-        maximumFrameHeight = Double(frames.values.map(\.height).max() ?? 400)
+        maximumFrameHeight = frames.values.map { Double($0.height) * $0.artworkScale }.max() ?? 400
     }
 
     func frame(for pose: PetPose) -> Frame { frames[pose]! }
@@ -98,14 +124,15 @@ final class PetAtlas {
     func pose(for engine: PetEngine, reducedMotion: Bool) -> PetPose {
         switch engine.state {
         case .idle: .standing
-        case .walking:
-            reducedMotion ? .standing : (Int(engine.elapsed * 5) % 2 == 0 ? .walkA : .walkB)
+        case .walking: .standing
         case .sitting: .sitting
         case .sleeping: .sleeping
         case .carried, .falling: .carried
         case .happy: .delighted
         case .playing, .curious: .playBow
         case .scheming: .mischievous
+        case .highFive: .highFive
+        case .stretching, .sniffing: .playBow
         }
     }
 
