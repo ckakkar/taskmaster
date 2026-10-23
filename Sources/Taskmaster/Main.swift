@@ -25,6 +25,7 @@ enum TaskmasterApplication {
                         guard frame.width > 0, frame.height > 0,
                             frame.eyes.allSatisfy({
                                 (0...1).contains($0.center.x) && (0...1).contains($0.center.y) && $0.radius > 0
+                                    && $0.aspect > 0
                             }),
                             frame.paw.map({ (0...1).contains($0.x) && (0...1).contains($0.y) }) ?? true,
                             frame.neck.map({

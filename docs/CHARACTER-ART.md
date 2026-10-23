@@ -36,7 +36,7 @@ Exact production prompt:
 
 These are painted poses with procedural animation, not a full skeletal 3D model
 or hand-keyed film sequence. A continuous leg deformation, head and tail rig,
-eye shader and pose crossfades provide movement at 60 Hz. Walking deforms the
+eye shader and pose crossfades provide movement at up to 60 fps. Walking deforms the
 standing pose with planted feet and lifted swing phases; the original two walk
 poses are retained for future art work, but are no longer switched at 5 Hz.
 
@@ -44,7 +44,10 @@ poses are retained for future art work, but are no longer switched at 5 Hz.
 
 `Sources/Taskmaster/Resources/ToothlessAtlas.png` is a new transparent 1536×1024
 atlas generated with the built-in imagegen tool. Its JSON records ten pose
-regions, eyes and raised-paw landmarks. The final two cells are unused. Crops
+regions, eyes and raised-paw landmarks. The eye landmarks were re-measured on
+23 October 2026 from the green of the irises (the earlier hand-placed ones sat
+on the snout and mouth in some poses); each records an `aspect` because the far
+eye is seen almost edge-on. The final two cells are unused. Crops
 have overlap margins to retain wing and tail tips; the loader extracts the
 largest connected silhouette. No official game artwork is bundled. This is
 fan-made generated artwork depicting Toothless from *How to Train Your Dragon*,

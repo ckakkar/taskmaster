@@ -19,6 +19,7 @@ final class PetAtlas {
             let x: Double
             let y: Double
             let radius: Double
+            let aspect: Double?
         }
         struct Region: Decodable {
             let x: Double
@@ -48,8 +49,12 @@ final class PetAtlas {
     }
     struct Frame {
         struct Eye {
+            /// Landmarks without an aspect describe Miso's slightly wide painted eyes.
+            static let defaultAspect: Float = 1 / 0.88
             let center: SIMD2<Float>
+            /// Vertical radius in texture pixels; the horizontal radius is `radius * aspect`.
             let radius: Float
+            var aspect: Float = defaultAspect
         }
         let image: CGImage
         let texture: SKTexture
@@ -134,7 +139,9 @@ final class PetAtlas {
                 return SIMD2(Float(px), Float(py))
             }
             let eyes: [Frame.Eye] = (region.eyes ?? []).map {
-                Frame.Eye(center: landmark($0.x, $0.y), radius: Float($0.radius * sx))
+                Frame.Eye(
+                    center: landmark($0.x, $0.y), radius: Float($0.radius * sx),
+                    aspect: $0.aspect.map(Float.init) ?? Frame.Eye.defaultAspect)
             }
             let paw: SIMD2<Float>? = region.paw.map { landmark($0.x, $0.y) }
             let neck: Frame.Neck? = region.neck.map {
@@ -169,7 +176,8 @@ final class PetAtlas {
                 let eyes = metadata.eyes.map {
                     Frame.Eye(
                         center: landmark($0.x, $0.y),
-                        radius: Float($0.radius / metadata.sourceWidth * Double(image.width)))
+                        radius: Float($0.radius / metadata.sourceWidth * Double(image.width)),
+                        aspect: $0.aspect.map(Float.init) ?? Frame.Eye.defaultAspect)
                 }
                 let artworkScale = Double(frames[.sitting]!.height) * metadata.relativeScale / Double(trimmed.height)
                 frames[.highFive] = Frame(
