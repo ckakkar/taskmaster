@@ -1,85 +1,112 @@
 <div align="center">
-  <img src="Sources/Taskmaster/Resources/MisoHighFive.png" alt="Miso offers a tiny high five" width="180">
+
+<img src="Resources/AppIcon.png" width="140" alt="Taskmaster's icon: Miso the red panda">
 
 # Taskmaster
 
-**A little company. A little mischief. A desktop with a heartbeat.**
+**A little company. A little mischief.**
 
-A native Mac companion that notices your cursor, brings you memes,
-keeps you company while you work, and occasionally commits a very small crime.
+A desktop companion for your Mac. Miso, a fluffy red panda, wanders along the bottom of your screen,<br>
+watches your cursor, naps while you're away, brings you memes and keeps you company while you work.
 
-[![macOS](https://img.shields.io/badge/macOS-14%2B-333333?logo=apple)](#get-started)
-[![Swift](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)](#under-the-fur)
+<a href="https://github.com/ckakkar/taskmaster/releases/latest/download/Taskmaster.dmg"><img src="https://img.shields.io/badge/Download_for_macOS-Taskmaster.dmg-C25A35?style=for-the-badge&logo=apple&logoColor=white" alt="Download Taskmaster.dmg"></a>
+
+<sub>Universal (Apple Silicon and Intel) · macOS 14 or later · updates itself</sub>
+
+[![Latest release](https://img.shields.io/github/v/release/ckakkar/taskmaster?color=C25A35&label=latest)](https://github.com/ckakkar/taskmaster/releases/latest)
 [![Check](https://github.com/ckakkar/taskmaster/actions/workflows/check.yml/badge.svg)](https://github.com/ckakkar/taskmaster/actions/workflows/check.yml)
+[![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)](#build-from-source)
 
-[Meet the companions](#meet-your-desk-mates) · [Make it yours](#your-kind-of-company) · [Build & run](#get-started) · [Handoff](docs/HANDOFF.md)
+[Install](#install) · [Meet your desk mates](#meet-your-desk-mates) · [Things to do together](#things-to-do-together) · [Considerate by design](#considerate-by-design) · [Build from source](#build-from-source)
+
+<br>
+
+<img src="docs/media/room.jpg" width="760" alt="The companion room: personalities, little rituals and a live preview of your companion">
 
 </div>
 
-![The companion room, running on macOS](docs/media/room.jpg)
+## Install
+
+1. **[Download Taskmaster.dmg](https://github.com/ckakkar/taskmaster/releases/latest/download/Taskmaster.dmg)** and open it.
+2. Drag **Taskmaster** into **Applications**.
+3. Open it. The first time, macOS stops it because the app isn't notarized: go to **System Settings › Privacy &
+   Security** and click **Open Anyway**. You only do this once.
+
+Then say hello, and look for the paw in your menu bar.
+
+<p align="center"><img src="docs/media/installer.png" width="600" alt="Taskmaster's installer window: drag Taskmaster into Applications, following a trail of pawprints"></p>
+
+**It keeps itself up to date.** Taskmaster checks for a new release soon after it opens and then every hour. When one
+is waiting, a dot appears on the menu bar paw and an **Update ready** note in the companion room; click either to
+see what's new, and it installs and relaunches. Switch automatic checks off in the room's settings (the sliders
+button) if you'd rather check yourself.
 
 ## Meet your desk mates
 
-| Companion | Personality you can see | Their little specialty |
-| --- | --- | --- |
-| **Miso** | A fluffy red panda with curious eyes, a swishing tail, and questionable intentions. | Muddy zoomies, pawprint trails, and an optional cursor heist. Four coat tones and a tiny wardrobe. |
-| **Toothless** | A miniature Night Fury with bright green eyes, ear fins, wings, and an unmistakable silhouette. | Full-screen **2D flight**, wing movement, blue spark trails, a glowing plasma toy, and airborne cursor following. |
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/media/miso-play.png" height="160" alt="Miso in a playful bow"><br>
+      <b>Miso</b><br>
+      <sub>A fluffy red panda with curious eyes, a swishing tail and questionable intentions. Muddy zoomies,
+      pawprint trails, four coat tones and a tiny wardrobe.</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/media/toothless-flying.png" height="160" alt="Toothless in flight"><br>
+      <b>Toothless</b><br>
+      <sub>A miniature Night Fury with bright green eyes and ear fins. Little flights across your screen, blue
+      spark trails, a glowing plasma toy, and following your cursor through the air.</sub>
+    </td>
+  </tr>
+</table>
 
-Each has ten authored poses: standing, two walk steps, sitting, sleeping,
-being carried, delight, a play bow, scheming, and a high five. Their shared
-behavior includes petting, treats, naps, dragging, games, notes and deliveries.
-Toothless lands gently before a ground activity or a quiet focus session.
+Each companion has ten painted poses and a soft procedural rig: planted footsteps, a breathing chest, a swishing
+tail, ear flicks, eyes that follow your cursor, and blinks. Miso is an original character; Toothless is a fan-made
+take on the dragon from *How to Train Your Dragon*.
 
-Airborne companions pass clicks through to your windows. Use **Land gently**
-before picking one up. Automatic flights are rare and have a three-minute
-breather between starts; Cozy keeps them off. Explicit flights are always
-available from the room. Toothless is a fan version of the existing character; Miso is an original
-design. Both use painted sprite art.
+## Things to do together
 
-## Your kind of company
+- **Pet, treat and play.** Stroke gently over the fur for hearts, offer a treat, or throw a ball and watch it get
+  chased and batted around.
+- **Pick up and put down.** Drag your companion anywhere, let go, and it falls and lands with a little squash.
+- **A companion that notices you.** A nearby cursor gets a glance and a head tilt; a wiggling one is an invitation
+  to play. Step away for a while and it curls up for a nap.
+- **Tiny games.** Offer a high five and click the raised paw. **Follow me** turns your cursor into a leader for a
+  minute; **Find a snack** sends it sniffing for a biscuit. Stretches, too, and **Come to this screen** when it's
+  on another display.
+- **Three moods.** **Cozy**, **Playful** or **Chaos**, plus a mischief slider from little angel to lovable menace.
+- **Little crimes.** Chaos leaves temporary muddy pawprints and silly notes. If you invite it, it can even borrow
+  your cursor for a second-and-a-half getaway; that's off by default, and a click or Esc ends it.
+- **Special deliveries.** Your companion walks off-screen and comes back pulling a card: one of your own images, a
+  direct HTTPS image link, or a starter card. Keep it a little longer, send it home, or let deliveries arrive on
+  their own every so often.
+- **Focus, together.** Start a 1–90 minute session; your companion settles down beside you, then suggests a stretch
+  when time's up.
+- **Make it yours.** A name, a size, your own sayings (use `{name}` for theirs), cozy or chaotic quip packs, bubble
+  colours, Miso's coat tones and a bandana, bow or bell.
 
-### Peaceful, playful, or a lovable menace
+<p align="center"><img src="docs/media/wardrobe.jpg" width="680" alt="Make it yours: choose a companion, a name, a coat tone and an accessory"></p>
 
-Choose **Cozy**, **Playful**, or **Chaos**, then fine-tune the mischief slider.
-A nearby cursor gets a glance, a head tilt, or an invitation to play. Gentle
-strokes earn hearts; a raised paw is waiting for your high five.
+**Finding your way around.** The paw in the menu bar opens the companion room, customization, games, pause, hide
+and quit; right-click your companion for the same. Closing the room leaves your companion on the desktop. With
+Taskmaster focused, `⌘,` opens the room and `⌘;` opens customization.
 
-Chaos can leave temporary pawprints, deliver silly notes, and borrow your
-cursor for a quick getaway. Cursor heists start **off**. Enable them in
-**Make it yours → Little crimes**; click or press Esc to end one.
-They last at most 1½ seconds and pause during focus. Wipe the evidence with one click.
+## Considerate by design
 
-### A familiar face, with your sense of humor
+- **Out of your way.** Clicks pass through everywhere except your companion and its props, it never takes keyboard
+  focus, and a flying companion lets every click through.
+- **Light on your Mac.** It redraws at 60 fps only while something moves or your pointer is near; calm moments drop
+  to 30 fps and naps to 20, and the overlay covers just a strip along the bottom of the screen unless something is
+  up high. Rendering stops while your display sleeps.
+- **Gentle.** Sound starts off. Reduce Motion turns off the warping, bounces, particles and cursor games.
+- **Private.** No account, analytics, cloud, camera or microphone. Your settings and images stay in
+  `~/Library/Application Support/Taskmaster/`. Taskmaster only goes online to fetch an image link you paste and to
+  check GitHub for updates. It never types, reads your screen or touches your documents.
 
-Pick a companion, choose a name and size, and write your own sayings.
-Use `{name}` wherever their name should appear. Mix in the original quips,
-add a cozy or chaotic pack, or choose silence. Bubble colors and reading time
-are adjustable too. Miso's coat, bandana, bow and bell can be styled separately.
+## Build from source
 
-![Choose a companion and customize its appearance](docs/media/wardrobe.jpg)
-
-### Special delivery, from somewhere off-screen
-
-Add your own images or paste a direct HTTPS image link. Your companion walks
-out of view, pulls a card onto the desktop, leaves it for a while, and takes
-it back. Keep a card for another 30 seconds, send it home early, or let occasional
-deliveries happen on a schedule. Three original starter cards are included.
-
-The stash holds up to 100 cards. Imports are copied, resized to at most 1600 pixels,
-and stored locally; originals stay untouched. Files and downloads are limited
-to 25 MB. Animated images use their first frame.
-
-### A little focus, together
-
-Start a 1–90 minute session. Your companion settles nearby while you work,
-then offers a gentle stretch reminder. The countdown uses real time, including
-when the pet is tucked away. Completed sessions are saved; an active timer
-resets when the app quits.
-
-## Get started
-
-Requires **macOS 14+**, **Swift 6+**, and Xcode or the Xcode Command Line Tools.
-There are no third-party package dependencies.
+You need macOS 14 or later, Swift 6 and Xcode or the Xcode Command Line Tools. The only package dependency is
+[Sparkle](https://sparkle-project.org), for updates.
 
 ```sh
 git clone https://github.com/ckakkar/taskmaster.git
@@ -87,95 +114,39 @@ cd taskmaster
 make run
 ```
 
-This creates and opens `build/Taskmaster.app`. Use `make dmg` for a drag-and-drop
-installer. Local builds are ad-hoc signed; distribution signing, notarization
-and automatic updates are not configured.
-
 | Command | What it does |
 | --- | --- |
-| `make run` | Build the release app and open the companion room. |
-| `make check` | Run behavior and image-import tests, compile the native app, and validate every shipped pose. |
-| `make lint` / `make format` | Check or apply the repository's Swift formatting. |
-| `make app` / `make dmg` | Create the app bundle or installer under `build/`. |
-| `make clean` | Remove generated build products. |
+| `make run` | Build `Taskmaster.app` and open it (quits a running copy first). |
+| `make install` | Build it and copy it into `/Applications`. |
+| `make dmg` | The universal app and its drag-to-Applications disk image, in `build/`. |
+| `make check` | Behavior and rendering tests, plus a check of every shipped pose. |
+| `make lint` · `make format` | Check or apply the Swift formatting. |
+| `make measure` | CPU and memory for each companion state, on an optimized build. |
 
-**Your way back home:** the paw in the menu bar opens the room, settings,
-games, pause, hide and quit. Right-click the companion for the same controls.
-Closing the room leaves your desk mate running. With the app focused,
-`⌘,` opens the room and `⌘;` opens customization. Launch with `--quiet`
-to show just the desktop companion and menu bar.
+Run `make` for the full list. For a throwaway set of settings while developing, launch the debug build with
+`TASKMASTER_STATE_DIR="$PWD/.local" .build/debug/Taskmaster`.
 
-## At home on your Mac
+Every push to `main` that passes CI becomes a release on its own: GitHub Actions builds the universal app, the disk
+image and the signed update feed. [RELEASING.md](docs/RELEASING.md) covers versions, keys and signing.
 
-No account, analytics, cloud backend, camera or microphone. Images and
-preferences live in `~/Library/Application Support/Taskmaster/`. Network requests
-happen when you explicitly import an HTTPS image; automatic deliveries use
-only your local stash. The app never types, reads your screen contents,
-or changes your documents. The optional cursor game moves the pointer briefly.
+### Under the fur
 
-The transparent overlay passes clicks through empty space. Sound starts off.
-Reduce Motion disables warping, bounce effects, particles and cursor grabs.
-The renderer sleeps with your display. One overlay follows the companion's
-current display; drag the pet to another monitor to move it there.
-
-For isolated development state:
-
-```sh
-make build
-TASKMASTER_STATE_DIR="$PWD/.local" .build/debug/Taskmaster
-.build/debug/Taskmaster --self-check
-```
-
-## Under the fur
-
-**SwiftUI** for the room and customization. **AppKit** for the menu bar and
-transparent nonactivating window. **SpriteKit** for character rendering.
-A deterministic **CompanionCore** handles behavior, physics, scheduling and
-2D movement without importing UI code.
+**SwiftUI** draws the companion room and customization, **AppKit** the menu bar and the transparent window your
+companion lives in, and **SpriteKit** the companion itself, with a shader for the eyes and a warp grid for the
+head, tail and legs. **CompanionCore** holds all the behavior, games, physics and scheduling, with no UI code, so
+it's tested directly.
 
 ```text
-Sources/CompanionCore/       Behavior, games, preferences, scheduling, physics
-Sources/Taskmaster/          Native app, rendering, wardrobe, meme library
-Sources/Taskmaster/Resources Character artwork and pose/eye/neck metadata
-Tests/CompanionCoreTests/   Simulation and regression tests
-Tests/TaskmasterTests/      Image import, recovery and streaming limits
-Resources/                  App metadata
-scripts/                    Build, icon and installer tools
-docs/                       Architecture, art provenance and handoff
+Sources/CompanionCore/        Behavior, games, preferences, scheduling, physics, frame pacing
+Sources/Taskmaster/           The app: rendering, eyes, room, customization, memes, updates
+Sources/Taskmaster/Resources/ Character art and its pose, eye and paw metadata
+Tests/                        Simulation, rendering and image-import tests
+scripts/                      App, icon, disk image and release tools
+docs/                         Architecture, art provenance, releases and the latest handoff
 ```
 
-The motion rig combines planted footsteps, eased acceleration, spring-based
-landings, eye tracking, blinks, ear flicks and pose transitions. Sprite textures
-are reused, transient effects are capped, and image conversion runs off the
-main thread. Animation feel and battery use still deserve testing on real Macs.
-
-Read [Architecture](docs/ARCHITECTURE.md), [Artwork & provenance](docs/CHARACTER-ART.md),
-and [Repository guidelines](AGENTS.md) before contributing. Include relevant
-tests, screenshots for visual changes, and an honest account of what you tried
-in the running app. Current verification and known limitations are recorded
-in the [handoff](docs/HANDOFF.md).
-
-## Repeatable performance checks
-
-Debug builds can hold a state for profiling without changing your normal setup:
-
-```sh
-make build
-.build/debug/Taskmaster --debug-avatar toothless --debug-state flying --quiet
-# Quit that instance before starting the full measurement matrix.
-python3 scripts/measure-performance.py
-python3 scripts/profile-performance.py
-```
-
-States are `sitting`, `walking`, `sleeping`, and `flying` (Toothless only).
-Omit `--quiet` to include the room. Release builds reject debug flags.
-The measurement script runs each supported combination for 60 seconds after
-a 10-second warm-up and stores raw results under `.local/performance/`.
-Profiling prefers Xcode's Time Profiler; without full Xcode it records a labeled
-`sample` fallback. Results, machine details and limits are in the
-[performance handoff](docs/HANDOFF.md#performance-baseline).
-That run also exposed eye-shader compilation errors on this Mac; the handoff
-records them for the next animation pass.
+Before contributing, read [ARCHITECTURE.md](docs/ARCHITECTURE.md), [CHARACTER-ART.md](docs/CHARACTER-ART.md) and
+[AGENTS.md](AGENTS.md). What's been verified, and what still needs a human eye, is in [HANDOFF.md](docs/HANDOFF.md).
 
 ---
 
