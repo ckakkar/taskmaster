@@ -9,7 +9,12 @@ guard let source = CGImageSourceCreateWithURL(atlasURL as CFURL, nil),
 else {
     fatalError("Missing character atlas")
 }
-let output = root.appendingPathComponent("build/Taskmaster.iconset", isDirectory: true)
+// Run by scripts/make-icons.sh: swift scripts/render-icon.swift <AppIcon.iconset>
+guard CommandLine.arguments.count == 2 else {
+    FileHandle.standardError.write(Data("usage: swift scripts/render-icon.swift <out.iconset>\n".utf8))
+    exit(2)
+}
+let output = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
 try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
 
 for pixels in [16, 32, 64, 128, 256, 512, 1024] {

@@ -46,6 +46,9 @@ final class AppModel: ObservableObject {
     var previews: [PetScene] { [previewScene, appearanceScene].compactMap { $0 } }
     @Published var chaosMessage: String?
     @Published private(set) var isStealingCursor = false
+    let updater = Updater()
+    /// The version of an update found by a background check, until it's installed or dismissed.
+    @Published private(set) var availableUpdate: String?
     var openRoom: (() -> Void)?
     var openCustomization: (() -> Void)?
     var closeCustomization: (() -> Void)?
@@ -92,6 +95,7 @@ final class AppModel: ObservableObject {
         }
         desktop = DesktopController(model: self, atlas: self.atlas)
         schedule = CompanionSchedule(preferences: preferences, now: Date().timeIntervalSince1970)
+        updater.onAvailable = { [weak self] version in self?.availableUpdate = version }
     }
 
     func select(_ personality: Personality) {

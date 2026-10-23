@@ -15,7 +15,7 @@ concurrency:
 jobs:
   macos:
     runs-on: macos-15
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - name: Show toolchain
@@ -24,3 +24,5 @@ jobs:
         run: make lint
       - name: Test and validate artwork
         run: make check
+      - name: Bundle the app (universal)
+        run: scripts/build-app.sh --universal

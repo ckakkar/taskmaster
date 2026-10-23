@@ -224,8 +224,10 @@ not certified through an end-to-end hardware session.
   hands-on checks. Unit tests cover their simulation boundaries only.
 - Recovering corrupt meme JSON retains images but cannot reconstruct lost
   titles or enabled flags. Animated imports use only their first frame.
-- Local app builds are ad-hoc signed. Notarization, distribution signing and
-  automatic updates are not configured.
+- Releases, the disk image and Sparkle updates follow Luna's setup
+  ([RELEASING.md](RELEASING.md)). The app isn't notarized (no Apple Developer
+  ID), so first launch needs **Open Anyway**. An update has not yet been installed
+  end to end from a published release; the first two releases will show it.
 
 Use `TASKMASTER_STATE_DIR` for isolated QA. Do not replace the owner's normal
 Application Support preferences or meme stash with test fixtures.

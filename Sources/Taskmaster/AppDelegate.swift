@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import CompanionCore
 import SwiftUI
 
@@ -8,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private var statusItem: NSStatusItem?
     private var room: NSWindow?
     private var customization: NSWindow?
+    private var updateBadge: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -24,13 +26,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             installApplicationMenu()
             let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
             if let button = item.button {
-                button.image = NSImage(
-                    systemSymbolName: "pawprint.fill", accessibilityDescription: "Taskmaster companion controls")
+                button.image = MenuBarGlyph.image(badge: false)
                 button.toolTip = "Taskmaster · a little company"
             }
             item.menu = makeMenu()
             item.menu?.delegate = self
             statusItem = item
+            updateBadge = model.$availableUpdate.sink { [weak self] version in
+                self?.statusItem?.button?.image = MenuBarGlyph.image(badge: version != nil)
+            }
             if !CommandLine.arguments.contains("--quiet") { showRoom() }
             #if DEBUG
                 try DebugLaunch.current?.writeReady(
@@ -121,6 +125,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             action: nil, keyEquivalent: "")
         heading.isEnabled = false
         menu.addItem(heading)
+        if let version = model.availableUpdate {
+            add(
+                "Update to Taskmaster \(version)…", action: #selector(checkForUpdates), to: menu,
+                symbol: "arrow.down.circle")
+        }
         add("Open companion room…", action: #selector(showRoom), to: menu, symbol: "house")
         add("Customize companion…", action: #selector(customizeVoice), to: menu, symbol: "slider.horizontal.3")
         add(
@@ -171,6 +180,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             model.isVisible ? "Tuck away" : "Bring back", action: #selector(toggleVisible), to: menu,
             symbol: model.isVisible ? "eye.slash" : "eye")
         menu.addItem(.separator())
+        if model.updater.isAvailable, model.availableUpdate == nil {
+            add("Check for Updates…", action: #selector(checkForUpdates), to: menu)
+        }
         add("Quit Taskmaster", action: #selector(quit), to: menu, key: "q")
         return menu
     }
@@ -188,6 +200,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         let appMenu = NSMenu(title: "Taskmaster")
         add("Companion room…", action: #selector(showRoom), to: appMenu, key: ",")
         add("Customize companion…", action: #selector(customizeVoice), to: appMenu, key: ";")
+        if model?.updater.isAvailable == true {
+            add("Check for Updates…", action: #selector(checkForUpdates), to: appMenu)
+        }
         appMenu.addItem(.separator())
         add("Quit Taskmaster", action: #selector(quit), to: appMenu, key: "q")
         root.submenu = appMenu
@@ -231,5 +246,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     @objc private func wipe() { model?.wipePawprints() }
     @objc private func pause() { model?.isPaused.toggle() }
     @objc private func toggleVisible() { model?.isVisible.toggle() }
+    @objc private func checkForUpdates() { model?.updater.checkForUpdates() }
     @objc private func quit() { NSApp.terminate(nil) }
 }

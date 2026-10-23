@@ -23,6 +23,18 @@ extension CompanionRoom {
                 .font(.system(size: 11, weight: .medium))
             }
             .foregroundStyle(Palette.secondary)
+            if let version = model.availableUpdate {
+                Button {
+                    model.updater.checkForUpdates()
+                } label: {
+                    Label("Update ready · \(version)", systemImage: "arrow.down.circle.fill")
+                        .font(.system(size: 11, weight: .medium)).padding(.horizontal, 11).padding(.vertical, 8)
+                        .foregroundStyle(Palette.paper)
+                        .background(Palette.orange, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .help("See what’s new and install Taskmaster \(version)")
+            }
             Button {
                 model.customize(.look)
             } label: {

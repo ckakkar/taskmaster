@@ -18,13 +18,14 @@ Run from the repository root on macOS 14+ with Swift 6+:
 ```sh
 make check # tests, native compilation and character resource self-check
 make lint  # check Swift formatting
-make run   # build and open build/Taskmaster.app
+make run   # build and open build/Taskmaster.app (quits a running copy first)
 make app   # release app bundle
-make dmg   # drag-and-drop installer
+make install # build and copy to /Applications
+make dmg   # universal app and the designed drag-to-Applications disk image
 make measure # CPU/memory matrix on an optimized build with the debug workloads
 ```
 
-`--self-check` validates character textures and landmarks without starting the companion. Use `TASKMASTER_STATE_DIR="$PWD/.local" .build/debug/Taskmaster` for isolated development state. Never commit this directory or personal preferences/images.
+Every push to `main` that passes Check is released automatically (see `docs/RELEASING.md`), so commit subjects become release notes. `--self-check` validates character textures and landmarks without starting the companion. Use `TASKMASTER_STATE_DIR="$PWD/.local" .build/debug/Taskmaster` for isolated development state. Never commit this directory or personal preferences/images.
 
 Debug builds accept `--debug-state sitting|walking|sleeping|flying` and `--debug-avatar miso|toothless`; `--quiet` omits the room. Miso cannot fly. These workloads use isolated defaults and hold their state. `scripts/measure-performance.py` records CPU/RSS; `scripts/profile-performance.py` profiles the worst recorded case. Keep measurements separate from optimization work.
 

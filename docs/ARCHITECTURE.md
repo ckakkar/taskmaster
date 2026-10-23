@@ -98,7 +98,7 @@ backward-compatible defaults, sanitization, debounced saves and atomic writes.
 ImageIO conversion in a detached task; files are limited to 25 MB and normalized
 to PNG with a maximum dimension of 1600 pixels. URLSession streams manual HTTPS
 imports into a temporary file, checks both Content-Length and actual bytes,
-and cancels when the limit is exceeded. No periodic network fetches occur.
+and cancels when the limit is exceeded. The only periodic request is the update check below.
 An NSCache bounds decoded images. Originals are never moved or removed.
 
 A damaged index is copied to a uniquely named recovery file. The library
@@ -110,6 +110,18 @@ colors each have a single source of truth.
 
 The menu-bar app survives closure of its ordinary windows, with explicit hide,
 pause and quit actions. No login item is installed. Sound is opt-in.
+
+## Updates and packaging
+
+`Updater` wraps Sparkle's standard updater, as in Luna. It starts only when the
+bundle's `SUPublicEDKey` is filled in (by `scripts/build-app.sh`, from
+`Resources/SparklePublicKey.txt`), so tests, the debug binary and builds without
+a key never check. Sparkle reads `appcast.xml` from the latest GitHub release
+about 20 seconds after launch and then hourly, and verifies each download's
+EdDSA signature. A background find is announced gently: a dot on the menu bar
+paw (`MenuBarGlyph`), a menu item and a note in the room; Sparkle's window
+opens when one is clicked, or by itself after a day. The release pipeline,
+disk image and keys are described in [RELEASING.md](RELEASING.md).
 
 ## Verification
 

@@ -36,6 +36,28 @@ struct PreferencesPanel: View {
             .font(.system(size: 11))
             .foregroundStyle(Palette.secondary)
             .fixedSize(horizontal: false, vertical: true)
+            Divider()
+            if model.updater.isAvailable {
+                // Sparkle keeps this setting; the model only announces the change to the view.
+                Toggle(
+                    "Check for updates automatically",
+                    isOn: Binding(
+                        get: { model.updater.automaticallyChecks },
+                        set: {
+                            model.objectWillChange.send()
+                            model.updater.automaticallyChecks = $0
+                        }))
+                HStack {
+                    Text("Taskmaster \(AppInfo.version)").foregroundStyle(Palette.secondary)
+                    Spacer()
+                    Button("Check Now") { model.updater.checkForUpdates() }.controlSize(.small)
+                }
+            } else {
+                Text("This copy of Taskmaster was built locally and doesn’t update itself.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Palette.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .font(.system(size: 12))
         .padding(25)
