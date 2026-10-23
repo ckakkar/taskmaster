@@ -20,7 +20,7 @@ extension PetScene {
     }
 
     func hitNote(_ point: CGPoint) -> Bool {
-        guard let note = childNode(withName: "note") else { return false }
+        guard let note, note.parent != nil else { return false }
         return note.contains(point)
     }
 

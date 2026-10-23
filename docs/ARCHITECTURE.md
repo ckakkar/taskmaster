@@ -34,8 +34,18 @@ each customization editor, shared controls and `PetPreview` has its own file.
 
 An AppKit nonactivating transparent panel contains a SpriteKit scene. It floats
 over normal windows without taking keyboard focus. Mouse input passes through
-unless an opaque character pixel or interactive prop is hit. Pawprints never
-intercept input. The companion room and wardrobe use additional live scenes.
+unless an opaque character pixel or interactive prop is hit; the panel's
+`ignoresMouseEvents` is only assigned when it changes, because every assignment
+is a window-server round trip. Pawprints never intercept input. The companion
+room and wardrobe use additional live scenes.
+
+Drawing and compositing a full-screen transparent layer costs GPU time on every
+frame, so the panel covers only a strip along the floor (`OverlayExtent`: the
+floor plus 260 + 230 × size points, enough for the tallest grounded pose,
+speech, notes and meme cards). It grows to the whole screen while the pet is
+carried, falling or flying, or the ball is held or will rise near the strip's
+top, and shrinks 1.5 seconds after that ends. The panel's bottom-left corner
+never moves, so scene coordinates stay the same at either size.
 
 `PetAtlas` trims each source rectangle to its largest connected silhouette.
 JSON metadata describes eyes, paws and neck placement, including high-five
@@ -45,8 +55,14 @@ fur while preserving cream markings and alpha, then cache textures. Miso's
 accessories attach to pose-specific neck coordinates and hide behind occluding
 paws or sleeping poses. Other characters keep their illustrated appearance.
 
-A small warp grid animates head, ears, tail, wings and legs; a shader animates
-eyes. Distance-driven gait keeps each foot planted during 62% of the cycle,
+A small warp grid animates head, ears, tail, wings and legs. `EyeShader` shifts
+the painted pupils toward the pointer and blinks by sliding fur-coloured lids
+over each eye: the upper lid's colour blends the fur in a ring above the eye and
+the lower lid's the ring below, so lids match the coat without streaks, and a
+lash line marks the lid edge. SpriteKit's Metal translation only exposes uniforms
+and `u_texture` inside `main()`, so both eyes are handled in a loop there. Eye
+landmarks are ovals: `radius` is vertical and the optional `aspect` is width ÷
+height (Toothless's far eye is seen almost edge-on). Distance-driven gait keeps each foot planted during 62% of the cycle,
 with Hermite swing curves and contact shadows. Springs handle landing and
 carried inertia. Each character profile defines its foot positions and phases.
 Flight banks gently as the dragon follows a 2D route.
@@ -60,7 +76,12 @@ The user tested physical pull-away on their Mac and confirmed it releases the
 cursor. Click and Esc remain the documented controls; other Macs need the same
 hardware check.
 
-The 60 Hz loop suspends with display sleep. Hidden desktop and closed preview
+The frame loop (`FramePacing`) runs at 60 fps while anything moves or is held,
+or the pointer is near the pet or over the room; calm moments drop to 30 fps
+and sleep to 20 fps, but only after a second of calm, so landings and pose
+blends finish smoothly. Cursor petting and curiosity measure pointer movement
+per frame and were tuned at 60 fps, which is why a nearby pointer always keeps
+it. The loop suspends with display sleep. Hidden desktop and closed preview
 scenes avoid their per-frame rendering. One overlay occupies the current
 screen; moving to another display rehomes the simulation and cancels delivery. Waking
 the same display preserves delivery and retains the current screen when present.
@@ -101,7 +122,9 @@ swift-format. GitHub Actions runs both on macOS.
 Debug-only `DebugLaunch` and `PetEngine+Debug` hold reproducible sitting,
 walking, sleeping and Toothless flying workloads. They preserve ordinary
 movement/rendering but bypass random activity decisions. Measurements use fresh
-isolated preferences, a fixed seed and the normal 60 Hz loop. Release builds
+isolated preferences, a fixed seed and the normal adaptive frame loop.
+`make measure` runs them on an optimized build compiled with `-DDEBUG` into
+`.build/perf`, apart from release output. Release builds
 contain no workload hook and reject debug launch flags. The `ps` runner measures
 cumulative CPU-time deltas and mean RSS; the separate profiler runner chooses
 the highest-CPU result so tracing does not contaminate the baseline.

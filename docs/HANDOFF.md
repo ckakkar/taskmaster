@@ -16,7 +16,7 @@ cooldown, and same-display wake preserves an active delivery.
 ## Automated verification
 
 `make format`, `make lint` and `make check` pass locally with Swift 6.4.
-The check reports **57 passing tests** and **20 validated transparent frames**.
+The check reports **64 passing tests** and **20 validated transparent frames**.
 The release bundle's `--self-check`, strict code-signature verification and
 DMG packaging also pass. The packaged resources contain no removed character art.
 GitHub Actions retains `macos-15` as the older-toolchain check; it runs lint,
@@ -37,6 +37,10 @@ Regression coverage includes:
 - Same-display wake preserving a meme; moving displays cancelling it.
 - Coat textures, all shipped poses, eye/paw landmarks and unclipped flight previews.
 - Debug workload validation, isolated defaults and states held for over 60 seconds.
+- The eye shader compiling and rendering through SpriteKit: blinks with fur-coloured
+  lids, pupils that follow the gaze, and no change outside the eyes, for both
+  companions (skipped on machines without a Metal device, such as some CI runners).
+- Frame-rate and overlay-size decisions for calm, moving, held, flying and ball states.
 
 ## Performance baseline
 
@@ -121,12 +125,56 @@ reported physical footprint as `393.1M`; that differs from the RSS metric above.
 The raw call graph and log are in
 `.local/performance-2026-10-23/worst-profile/sample.txt` and `sample.log`.
 
-**Existing renderer issue:** every scenario logged eye-shader compilation
-errors on this Mac, including undeclared `u_pixels`, `u_gaze`, `u_texture` and
-`u_blink` in `PetAnimation.swift`'s shader. The table measures that current
-behavior, not a corrected shader. The issue is left unchanged for the next
-animation/performance pass. `--self-check` validates textures and metadata;
-it does not compile the shader on the GPU and did not detect this failure.
+**Renderer issue at the time (now fixed):** every scenario logged eye-shader
+compilation errors, so the table above measures sprites drawn without the eye
+shader. See the rendering pass below.
+
+## Rendering pass — eyes, frame pacing and overlay size
+
+**Eyes.** The eye shader had never compiled on this Mac: SpriteKit's Metal
+translation only exposes uniforms and `u_texture` inside `main()`, and the eye
+code lived in a helper function, so SpriteKit silently drew the plain sprite.
+`EyeShader` now handles both eyes in a loop inside `main()`. Once visible, the
+original lids (one row of fur stretched over the eye) streaked badly, so lids
+are now blended from the fur ringing each eye — the upper lid from above, the
+lower lid from below — with a shaded edge and a lash line. Toothless's eye
+landmarks were re-measured from his irises; several sat on his snout or mouth.
+The regression test renders through SpriteKit and fails against the old shader.
+
+**Per-frame work.** `panel.ignoresMouseEvents` was assigned every frame; each
+assignment is a window-server round trip and also forced Core Animation fence
+transactions, which were the largest main-thread cost in `sample`. It is now
+assigned only when it changes. `childNode(withName:)`, which parses a search
+pattern, no longer runs every frame.
+
+**Frame pacing and overlay size.** See `FramePacing` and `OverlayExtent` in
+[ARCHITECTURE.md](ARCHITECTURE.md): 60 fps while anything moves, is held or is
+near the pointer, otherwise 30 fps (20 asleep); the panel covers a floor strip
+(597 of 1,440 points on this display) and grows to full screen only while
+something can be above it.
+
+**Measured.** Same Mac and display as above. Optimized builds with the debug
+workloads (`make measure`'s build), 5-second warm-up and 20-second window, the
+owner's regular companion still running (it was not quit this time), and the
+old and new builds alternated case by case so background activity affects both.
+Repeated runs of one case varied by about ±1.5 points.
+
+| Case | Before (`c25825c`) | After |
+| --- | ---: | ---: |
+| Miso sitting, room closed | 9.45% | 5.30% |
+| Miso walking, room closed | 11.40% | 9.45% |
+| Miso sleeping, room closed | 9.35% | 3.60% |
+| Toothless flying, room closed | 12.40% | 9.30% |
+| Miso sitting, room open, pointer over the room | 16.85% | 14.30% |
+
+Mean RSS was unchanged at about 140 MiB (room closed). The room-open row stays
+at 60 fps by design while the pointer is over the room.
+
+GPU: `ioreg` "Device Utilization %", averaged over 30 half-second readings,
+with and without one test pet. This is a coarse, system-wide counter and
+another app raised the idle baseline to 18–20% during the comparison, so treat
+the numbers as relative. The original build added about 31 points sitting and
+29 walking; the new build added about 12 and 8.
 
 ## Checked in the running Mac app
 
@@ -148,6 +196,13 @@ and the room preferences popover were opened again. The normal custom name,
 defaults did not leak into them. The app was returned to desktop-only operation.
 Release launch with `--debug-state sitting` exits with status 2, as intended.
 
+In the rendering pass, the eye fix was checked with SpriteKit renders of every
+pose at magnified and on-screen scale, and the overlay's real window bounds were
+read back from the window server for sitting (a 597-point strip) and flying
+(full screen) test pets. Blinking and cursor-following were **not** watched on
+the desktop yet, the release `.app` bundle was not rebuilt (the owner's copy was
+running from it), and multi-display strip resizing was not tried.
+
 The owner tested cursor borrowing with a physical mouse and reported that
 **pulling away releases it** on their Mac. This is user-tested hardware behavior,
 not a simulated input result. Click and Esc remain the documented controls.
@@ -160,11 +215,11 @@ not certified through an end-to-end hardware session.
 
 - Animation feel still needs sustained human observation. These are painted
   poses with procedural deformation, rather than skeletal 3D animation.
-- Eye-shader compilation failed in the measured runs; see the profile notes.
-  This remains unfixed, and passing texture/metadata checks do not certify it.
-- The table above replaces the earlier uncontrolled sample of about 19.8% CPU
-  and 174 MiB RSS. It is a single pass on one Mac with default benchmark
-  settings; release builds and different displays/settings can differ.
+- Blink appearance is tuned from magnified renders; it still needs a look at
+  real size on the desktop, especially Miso's paler lower lids.
+- Performance numbers are single passes on one Mac and one 5K display with
+  default benchmark settings; other displays and settings can differ. GPU
+  readings are coarse and were taken with other GPU activity present.
 - Multi-monitor hardware, sleep/wake and cursor release on other Macs need
   hands-on checks. Unit tests cover their simulation boundaries only.
 - Recovering corrupt meme JSON retains images but cannot reconstruct lost

@@ -1,4 +1,4 @@
-.PHONY: build run check lint format app dmg clean help
+.PHONY: build run check lint format app dmg measure clean help
 
 export CLANG_MODULE_CACHE_PATH := $(CURDIR)/.build/module-cache
 export SWIFTPM_MODULECACHE_OVERRIDE := $(CURDIR)/.build/module-cache
@@ -8,6 +8,7 @@ help:
 	@echo "make check  Run behavior tests and compile the native app"
 	@echo "make app    Build a release .app in build/"
 	@echo "make dmg    Package a drag-and-drop disk image"
+	@echo "make measure  CPU/memory matrix on an optimized build with debug workloads"
 	@echo "make clean  Remove generated build products"
 
 build:
@@ -31,6 +32,11 @@ run: app
 
 dmg: app
 	./scripts/build-dmg.sh
+
+# Optimized like a release, but keeps the debug-only workload switches; built apart from release output.
+measure:
+	swift build -c release -Xswiftc -DDEBUG --product Taskmaster --scratch-path .build/perf --disable-sandbox
+	python3 scripts/measure-performance.py --binary .build/perf/release/Taskmaster
 
 clean:
 	rm -rf .build build

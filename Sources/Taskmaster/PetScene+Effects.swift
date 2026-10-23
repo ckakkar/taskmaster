@@ -3,7 +3,7 @@ import CompanionCore
 import SpriteKit
 
 extension PetScene {
-    func dismissNote() { childNode(withName: "note")?.removeFromParent() }
+    func dismissNote() { note?.removeFromParent() }
 
     func clearFootprints() {
         for node in children where node.name == "footprint" { node.removeFromParent() }
@@ -151,6 +151,7 @@ extension PetScene {
         signature.position.y = -height / 2 + 14
         card.addChild(signature)
         addChild(card)
+        note = card
         card.alpha = 0
         card.run(
             .sequence([
@@ -159,7 +160,7 @@ extension PetScene {
     }
 
     private func speech(_ text: String) {
-        childNode(withName: "speech")?.removeFromParent()
+        speechBubble?.removeFromParent()
         let label = SKLabelNode(text: text)
         label.fontName = NSFont.systemFont(ofSize: 12, weight: .semibold).fontName
         label.fontSize = 12
@@ -179,6 +180,7 @@ extension PetScene {
         pill.zPosition = 9
         pill.addChild(label)
         addChild(pill)
+        speechBubble = pill
         pill.run(.sequence([.wait(forDuration: speechSeconds), .fadeOut(withDuration: 0.5), .removeFromParent()]))
     }
 

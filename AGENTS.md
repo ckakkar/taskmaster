@@ -21,6 +21,7 @@ make lint  # check Swift formatting
 make run   # build and open build/Taskmaster.app
 make app   # release app bundle
 make dmg   # drag-and-drop installer
+make measure # CPU/memory matrix on an optimized build with the debug workloads
 ```
 
 `--self-check` validates character textures and landmarks without starting the companion. Use `TASKMASTER_STATE_DIR="$PWD/.local" .build/debug/Taskmaster` for isolated development state. Never commit this directory or personal preferences/images.

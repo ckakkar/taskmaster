@@ -23,6 +23,10 @@ final class DesktopController: NSObject {
     private var lastWarp: CGPoint?
     private var cursorHoldStarted: Double = 0
     private var cursorPullDistance: Double = 0
+    private(set) var framesPerSecond = FramePacing.active
+    private var settleUntil: Double = 0
+    private var coversWholeScreen = true
+    private var wholeScreenUntil: Double = 0
     var isDragging = false
     var contextMenu: (() -> NSMenu)?
 
@@ -56,7 +60,7 @@ final class DesktopController: NSObject {
         panel.contentView = canvas
         canvas.driver = self
         canvas.allowsTransparency = true
-        canvas.preferredFramesPerSecond = 60
+        canvas.preferredFramesPerSecond = framesPerSecond
         canvas.ignoresSiblingOrder = true
         canvas.shouldCullNonVisibleNodes = true
         canvas.presentScene(scene)
@@ -67,10 +71,7 @@ final class DesktopController: NSObject {
         renderNow()
         panel.orderFrontRegardless()
 
-        let timer = Timer(timeInterval: 1.0 / 60, target: self, selector: #selector(tick), userInfo: nil, repeats: true)
-        timer.tolerance = 0.002
-        self.timer = timer
-        RunLoop.main.add(timer, forMode: .common)
+        startTimer()
         NotificationCenter.default.addObserver(
             self, selector: #selector(displaysChanged), name: NSApplication.didChangeScreenParametersNotification,
             object: nil)
@@ -100,6 +101,7 @@ final class DesktopController: NSObject {
         if engine.habitat != habitat {
             engine.changeHabitat(habitat)
         }
+        layoutPanel()
         panel.collectionBehavior =
             model.preferences.allSpaces
             ? [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
@@ -140,6 +142,7 @@ final class DesktopController: NSObject {
             move(to: target)
         }
         engine.drag(to: Point(x: point.x, y: point.y), seconds: seconds)
+        updateExtent(now: CACurrentMediaTime())
         renderNow()
     }
 
@@ -181,6 +184,7 @@ final class DesktopController: NSObject {
                 seconds: dt, cursor: Point(x: pointer.x, y: pointer.y), userIdle: idle,
                 cursorContact: !isDragging && scene.hitPet(localPoint))
         }
+        updateExtent(now: now)
         if model.isVisible {
             scene.render(
                 engine: engine, preferences: model.preferences, origin: screen.frame.origin,
@@ -201,9 +205,41 @@ final class DesktopController: NSObject {
             engine.aerialRoute == nil
             && (cardHit || scene.hitPet(localPoint) || scene.hitPaw(localPoint) || scene.hitBall(localPoint)
                 || scene.hitNote(localPoint))
-        panel.ignoresMouseEvents = !(isDragging || interactive)
+        // Every assignment is a window-server round trip, even when the value is unchanged.
+        let ignoresMouse = !(isDragging || interactive)
+        if panel.ignoresMouseEvents != ignoresMouse { panel.ignoresMouseEvents = ignoresMouse }
+        pace(pointer: pointer, now: now)
         presentationTick += 1
         if presentationTick % 12 == 0 { model.syncPresentation() }
+    }
+
+    private func startTimer() {
+        timer?.invalidate()
+        let interval = 1.0 / Double(framesPerSecond)
+        let timer = Timer(timeInterval: interval, target: self, selector: #selector(tick), userInfo: nil, repeats: true)
+        timer.tolerance = interval * 0.1
+        self.timer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    /// Speeds up at once for movement or a nearby pointer; slows down only after things settle.
+    private func pace(pointer: CGPoint, now: Double) {
+        let roomUnderPointer = model.previews.contains {
+            $0.view?.window?.isVisible == true && $0.view?.window?.frame.contains(pointer) == true
+        }
+        let wanted =
+            roomUnderPointer
+            ? FramePacing.active
+            : engine.framesPerSecond(pointer: Point(x: pointer.x, y: pointer.y), isDragging: isDragging)
+        if wanted >= FramePacing.active { settleUntil = now + FramePacing.settleSeconds }
+        if wanted != framesPerSecond, wanted > framesPerSecond || now >= settleUntil {
+            framesPerSecond = wanted
+            canvas.preferredFramesPerSecond = wanted
+            startTimer()
+        }
+        for preview in model.previews where preview.view?.preferredFramesPerSecond != framesPerSecond {
+            preview.view?.preferredFramesPerSecond = framesPerSecond
+        }
     }
 
     private func updateCursorHold(pointer: CGPoint, now: Double) {
@@ -249,15 +285,36 @@ final class DesktopController: NSObject {
     private func move(to newScreen: NSScreen) {
         let changedDisplay = Self.displayID(screen) != Self.displayID(newScreen)
         let habitat = Self.habitat(for: newScreen, scale: model.preferences.size)
-        if !changedDisplay, panel.frame == newScreen.frame, engine.habitat == habitat {
-            screen = newScreen
-            return
-        }
         screen = newScreen
-        panel.setFrame(newScreen.frame, display: true)
-        canvas.frame = CGRect(origin: .zero, size: newScreen.frame.size)
-        scene.size = newScreen.frame.size
-        engine.rehome(to: habitat, changedDisplay: changedDisplay)
+        if changedDisplay || engine.habitat != habitat {
+            engine.rehome(to: habitat, changedDisplay: changedDisplay)
+        }
+        layoutPanel()
+    }
+
+    private var stripTop: Double {
+        engine.habitat.floor + OverlayExtent.stripHeight(size: model.preferences.sanitized().size)
+    }
+
+    /// Grows the panel to the whole screen while something can be above the floor strip.
+    private func updateExtent(now: Double) {
+        if engine.reachesAbove(stripTop, isDragging: isDragging) {
+            wholeScreenUntil = now + OverlayExtent.holdSeconds
+        }
+        let whole = now < wholeScreenUntil
+        guard whole != coversWholeScreen else { return }
+        coversWholeScreen = whole
+        layoutPanel()
+    }
+
+    /// The panel's bottom-left corner stays at the screen's, so scene coordinates never change.
+    private func layoutPanel() {
+        var frame = screen.frame
+        if !coversWholeScreen { frame.size.height = min(frame.height, max(1, CGFloat(stripTop) - frame.minY)) }
+        guard panel.frame != frame else { return }
+        panel.setFrame(frame, display: true)
+        canvas.frame = CGRect(origin: .zero, size: frame.size)
+        scene.size = frame.size
     }
 
     @objc private func displaysChanged() {

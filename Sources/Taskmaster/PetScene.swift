@@ -35,6 +35,11 @@ final class PetScene: SKScene {
     var pawprintSeconds: Double = 35
     var printScale: Double = 1
     var flightSparkAt: Double = 0
+    // Transient nodes touched every frame are referenced directly: SpriteKit's
+    // childNode(withName:) parses a search pattern on every call.
+    weak var poseTransition: SKNode?
+    weak var speechBubble: SKNode?
+    weak var note: SKNode?
 
     init(size: CGSize, atlas: PetAtlas, preview: Bool = false) {
         self.atlas = atlas

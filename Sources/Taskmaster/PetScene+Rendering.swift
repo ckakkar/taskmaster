@@ -85,8 +85,8 @@ extension PetScene {
             gaze: animation.attention.gaze, tilt: animation.attention.headTilt,
             time: time, moving: movement, reducedMotion: reducedMotion)
         wardrobe.isHidden = preferences.avatar != .miso || wardrobe.isHidden
-        childNode(withName: "poseTransition")?.position = point
-        if let speech = childNode(withName: "speech") {
+        if let transition = poseTransition, transition.parent != nil { transition.position = point }
+        if let speech = speechBubble, speech.parent != nil {
             speech.position = speechPosition(width: speech.frame.width, height: speech.frame.height)
         }
         focusLabel.position = CGPoint(x: point.x, y: point.y + pet.size.height + 20)
@@ -172,7 +172,7 @@ extension PetScene {
     }
 
     private func crossfadePose() {
-        childNode(withName: "poseTransition")?.removeFromParent()
+        poseTransition?.removeFromParent()
         let previous = SKSpriteNode(texture: pet.texture)
         previous.name = "poseTransition"
         previous.anchorPoint = pet.anchorPoint
@@ -183,6 +183,7 @@ extension PetScene {
         previous.zRotation = pet.zRotation
         previous.zPosition = 3.1
         addChild(previous)
+        poseTransition = previous
         previous.alpha = 0.14
         previous.run(.sequence([.fadeOut(withDuration: 0.08), .removeFromParent()]))
         pet.alpha = 1
