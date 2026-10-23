@@ -75,8 +75,9 @@ not support flight. The regular companion was quit and its settings were untouch
 
 The measured source revision is `2e45e76`, before the mechanical UI file split;
 all 35 moved method/section bodies were compared and matched, ignoring whitespace.
-Raw counters, process handshakes and metadata are retained locally under
-`.local/performance-2026-10-23/`. To repeat:
+Raw counters, process handshakes and metadata were kept in
+`.local/performance-2026-10-23/` and later removed in a cleanup; the tables here
+are the record. To repeat:
 
 ```sh
 make build
@@ -122,8 +123,7 @@ Within the application workload call graph, `PetScene.render` appeared in
 1,705 observations and `PetAnimation.update` in 1,615. Those counts are
 inclusive and overlap. No optimization was applied. The separate profile
 reported physical footprint as `393.1M`; that differs from the RSS metric above.
-The raw call graph and log are in
-`.local/performance-2026-10-23/worst-profile/sample.txt` and `sample.log`.
+The raw call graph and log were not kept.
 
 **Renderer issue at the time (now fixed):** every scenario logged eye-shader
 compilation errors, so the table above measures sprites drawn without the eye
@@ -176,6 +176,16 @@ another app raised the idle baseline to 18–20% during the comparison, so treat
 the numbers as relative. The original build added about 31 points sitting and
 29 walking; the new build added about 12 and 8.
 
+## First release — 0.1.25
+
+The release workflow published Taskmaster 0.1.25 on 23 October 2026 with
+`Taskmaster.dmg`, `Taskmaster.zip` and `appcast.xml`. The downloaded assets were
+checked: the app is universal, signed by "Taskmaster Self-Signed", carries the
+update key and feed URL, and passes `--self-check` from the mounted disk image;
+the archive's EdDSA signature verifies against the update key and its length
+matches the appcast. It was installed into `/Applications` on the owner's Mac,
+replacing the older local build.
+
 ## Checked in the running Mac app
 
 The room, customization pages, custom name, Miso/Toothless selection, voice
@@ -226,8 +236,9 @@ not certified through an end-to-end hardware session.
   titles or enabled flags. Animated imports use only their first frame.
 - Releases, the disk image and Sparkle updates follow Luna's setup
   ([RELEASING.md](RELEASING.md)). The app isn't notarized (no Apple Developer
-  ID), so first launch needs **Open Anyway**. An update has not yet been installed
-  end to end from a published release; the first two releases will show it.
+  ID), so first launch needs **Open Anyway**. Installing an update through
+  Sparkle's window (0.1.25 to the next release) still needs a person to click
+  Install to confirm the whole path.
 
 Use `TASKMASTER_STATE_DIR` for isolated QA. Do not replace the owner's normal
 Application Support preferences or meme stash with test fixtures.
