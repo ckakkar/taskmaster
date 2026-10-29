@@ -11,7 +11,7 @@ extension CompanionRoom {
             HStack {
                 HStack(spacing: 7) {
                     Image(systemName: "leaf").font(.system(size: 11))
-                    Text(model.preferences.avatar.subtitle).font(.system(size: 11))
+                    Text(model.preferences.avatar.subtitle).font(.system(size: 12))
                 }
                 .foregroundStyle(Palette.secondary)
                 Spacer()
@@ -19,9 +19,10 @@ extension CompanionRoom {
                     model.isVisible.toggle()
                 } label: {
                     Label(
-                        model.isVisible ? "Tuck away" : "Bring back", systemImage: model.isVisible ? "eye.slash" : "eye"
+                        model.isVisible ? "Tuck away · Hide" : "Bring back · Show",
+                        systemImage: model.isVisible ? "eye.slash" : "eye"
                     )
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Palette.secondary)
@@ -29,10 +30,10 @@ extension CompanionRoom {
                     model.isPaused.toggle()
                 } label: {
                     Label(
-                        model.isPaused ? "Let’s wander" : "Settle down",
+                        model.isPaused ? "Let’s wander · Resume" : "Settle down · Pause",
                         systemImage: model.isPaused ? "play.fill" : "pause.fill"
                     )
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .padding(.horizontal, 13)
                     .padding(.vertical, 9)
                     .background(Palette.ink, in: Capsule())

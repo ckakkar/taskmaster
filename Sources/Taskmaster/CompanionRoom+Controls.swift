@@ -9,7 +9,7 @@ extension CompanionRoom {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 5) {
                 Text("GOOD COMPANY, YOUR WAY")
-                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
                     .tracking(1.6)
                     .foregroundStyle(Palette.secondary)
                 Text("What’s the mood?").font(.system(size: 23, weight: .regular, design: .serif))
@@ -24,10 +24,10 @@ extension CompanionRoom {
             }
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Text("A touch of mischief").font(.system(size: 11, weight: .medium))
+                    Text("A touch of mischief").font(.system(size: 12, weight: .medium))
                     Spacer()
                     Text("\(Int(model.preferences.mischief * 100))%")
-                        .font(.system(size: 10, design: .monospaced))
+                        .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(Palette.secondary)
                 }
                 Slider(value: $model.preferences.mischief, in: 0...1)
@@ -37,19 +37,19 @@ extension CompanionRoom {
                     Spacer()
                     Text("lovable menace")
                 }
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .foregroundStyle(Palette.secondary)
             }
             Rectangle().fill(Palette.line.opacity(0.75)).frame(height: 0.7)
             HStack {
                 Text("LITTLE RITUALS")
-                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
                     .tracking(1.7)
                     .foregroundStyle(Palette.secondary)
                 Spacer()
                 if model.interactions > 0 {
-                    Text("\(model.interactions) little moments")
-                        .font(.system(size: 9))
+                    Text("\(model.interactions) little moment\(model.interactions == 1 ? "" : "s")")
+                        .font(.system(size: 11))
                         .foregroundStyle(Palette.secondary)
                 }
             }
@@ -80,15 +80,25 @@ extension CompanionRoom {
                     hint: "Watch \(model.preferences.name) find and eat a little biscuit."
                 ) { model.perform(.findTreat) }
             }
-            Button {
-                model.perform(model.state == .flying ? .stopFollowing : .signature)
-            } label: {
-                Label(
-                    model.state == .flying
-                        ? "Land gently" : model.preferences.avatar.signature,
-                    systemImage: model.preferences.avatar.symbol
-                ).frame(maxWidth: .infinity)
-            }.buttonStyle(.bordered).controlSize(.small)
+            HStack(spacing: 9) {
+                Button {
+                    model.perform(model.state == .flying ? .stopFollowing : .signature)
+                } label: {
+                    Label(
+                        model.state == .flying
+                            ? "Land gently" : model.preferences.avatar.signature,
+                        systemImage: model.preferences.avatar.symbol
+                    ).frame(maxWidth: .infinity)
+                }
+                Button {
+                    model.perform(.hideAndSeek)
+                } label: {
+                    Label("Hide and seek", systemImage: "eye.slash").frame(maxWidth: .infinity)
+                }
+                .help(
+                    "\(model.preferences.name) hides off the edge of the screen, then peeks back in. Pet them to win.")
+            }
+            .buttonStyle(.bordered).controlSize(.small)
         }
     }
 }

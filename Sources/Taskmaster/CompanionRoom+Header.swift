@@ -36,7 +36,7 @@ extension CompanionRoom {
                 .help("See what’s new and install Taskmaster \(version)")
             }
             Button {
-                model.customize(.look)
+                model.openSettings(.companion)
             } label: {
                 Label("Make it yours", systemImage: "sparkles")
                     .font(.system(size: 11, weight: .medium)).padding(.horizontal, 11).padding(.vertical, 8)
@@ -44,7 +44,7 @@ extension CompanionRoom {
                     .overlay(Capsule().stroke(Palette.line.opacity(0.7), lineWidth: 0.7))
             }.buttonStyle(.plain)
             Button {
-                model.showPreferences.toggle()
+                model.openSettings(.general)
             } label: {
                 Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 15))
@@ -53,11 +53,8 @@ extension CompanionRoom {
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.line.opacity(0.7), lineWidth: 0.7))
             }
             .buttonStyle(.plain)
-            .help("Companion preferences")
-            .accessibilityLabel("Companion preferences")
-            .popover(isPresented: $model.showPreferences, arrowEdge: .bottom) {
-                PreferencesPanel(model: model)
-            }
+            .help("Settings")
+            .accessibilityLabel("Settings")
         }
     }
 }

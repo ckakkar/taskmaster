@@ -130,8 +130,11 @@ extension PetScene {
         label.fontColor = NSColor(calibratedRed: 0.39, green: 0.30, blue: 0.20, alpha: 1)
         label.preferredMaxLayoutWidth = 180
         label.numberOfLines = 0
-        label.verticalAlignmentMode = .center
-        let height = max(87, label.frame.height + 51)
+        // Measured with the whole sentence, then anchored at its top-left so typing never reflows the card.
+        let textHeight = label.frame.height
+        label.horizontalAlignmentMode = .left
+        label.verticalAlignmentMode = .top
+        let height = max(87, textHeight + 51)
         let card = SKShapeNode(rectOf: CGSize(width: 216, height: height), cornerRadius: 10)
         card.name = "note"
         card.fillColor = NSColor(calibratedRed: 1, green: 0.95, blue: 0.77, alpha: 1)
@@ -142,8 +145,22 @@ extension PetScene {
         card.position = CGPoint(
             x: min(max(120, size.width - 120), max(120, candidateX)), y: petLocation.y + height / 2 + 18)
         card.zRotation = -0.055
-        label.position.y = 7
+        label.position = CGPoint(x: -90, y: 7 + textHeight / 2)
         card.addChild(label)
+        let characters = Array(text)
+        if !reducedMotion, characters.count > 1 {
+            // The note writes itself out, a letter at a time.
+            label.text = ""
+            let duration = min(1.8, Double(characters.count) * 0.035)
+            label.run(
+                .sequence([
+                    .wait(forDuration: 0.3),
+                    .customAction(withDuration: duration) { node, elapsed in
+                        let typed = Int((Double(elapsed) / duration * Double(characters.count)).rounded(.up))
+                        (node as? SKLabelNode)?.text = String(characters.prefix(min(characters.count, typed)))
+                    },
+                ]))
+        }
         let signature = SKLabelNode(text: "a note from \(nameLabel.text ?? "your companion")  ·  click to tidy")
         signature.fontName = NSFont.systemFont(ofSize: 8).fontName
         signature.fontSize = 8

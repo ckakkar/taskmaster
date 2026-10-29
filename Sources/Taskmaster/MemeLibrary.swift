@@ -10,9 +10,22 @@ struct MemeItem: Codable, Identifiable, Equatable, Sendable {
     var isStarter: Bool { fileName == nil }
 }
 
+/// A card removed a moment ago, kept so the removal can be undone.
+struct RemovedMeme {
+    let item: MemeItem
+    let index: Int
+    let trashedFile: URL?
+}
+
 @MainActor
 final class MemeLibrary: ObservableObject {
+    static let capacity = 100
     @Published private(set) var items: [MemeItem] = []
+    /// Why the stash couldn't be saved, until a later save succeeds.
+    @Published private(set) var problem: String?
+    /// Something worth knowing about the stash, such as a recovered list, until dismissed.
+    @Published var notice: String?
+    @Published private(set) var lastRemoved: RemovedMeme?
     private let directory: URL
     private let indexURL: URL
     private let images = NSCache<NSString, NSImage>()
@@ -31,7 +44,9 @@ final class MemeLibrary: ObservableObject {
         if let data = try? Data(contentsOf: indexURL),
             let saved = try? JSONDecoder().decode([MemeItem].self, from: data)
         {
+            var seen = Set<String>()
             items = saved.filter { item in
+                guard seen.insert(item.id).inserted else { return false }
                 guard let name = item.fileName else { return true }
                 return Self.isOwnedFile(name)
                     && FileManager.default.fileExists(atPath: self.directory.appendingPathComponent(name).path)
@@ -51,6 +66,8 @@ final class MemeLibrary: ObservableObject {
             if FileManager.default.fileExists(atPath: indexURL.path) {
                 let backup = self.directory.appendingPathComponent("library-corrupt-\(UUID().uuidString).json")
                 try? FileManager.default.copyItem(at: indexURL, to: backup)
+                notice =
+                    "The meme list was damaged, so it was rebuilt from the images in the stash. Their titles and rotation choices were reset; the old list was kept as \(backup.lastPathComponent)."
             }
             save()
         }
@@ -71,21 +88,50 @@ final class MemeLibrary: ObservableObject {
         save()
     }
 
-    func remove(_ item: MemeItem) {
-        items.removeAll { $0.id == item.id }
-        images.removeObject(forKey: item.id as NSString)
+    func rename(_ id: String, to title: String) {
+        let clean = String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(60))
+        guard !clean.isEmpty, let index = items.firstIndex(where: { $0.id == id }), items[index].title != clean
+        else { return }
+        items[index].title = clean
         save()
-        if let name = item.fileName, Self.isOwnedFile(name) {
-            try? FileManager.default.trashItem(at: directory.appendingPathComponent(name), resultingItemURL: nil)
-        }
     }
 
+    /// Removes a card and moves its image to the Trash; `undoRemove()` brings both back.
+    func remove(_ item: MemeItem) {
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items.remove(at: index)
+        images.removeObject(forKey: item.id as NSString)
+        save()
+        var trashed: NSURL?
+        if let name = item.fileName, Self.isOwnedFile(name) {
+            try? FileManager.default.trashItem(at: directory.appendingPathComponent(name), resultingItemURL: &trashed)
+        }
+        lastRemoved = RemovedMeme(item: item, index: index, trashedFile: trashed as URL?)
+    }
+
+    func undoRemove() {
+        guard let removed = lastRemoved, items.count < Self.capacity else { return }
+        lastRemoved = nil
+        if let name = removed.item.fileName {
+            guard let trashed = removed.trashedFile,
+                (try? FileManager.default.moveItem(at: trashed, to: directory.appendingPathComponent(name))) != nil
+            else {
+                notice = "“\(removed.item.title)” couldn’t be brought back from the Trash."
+                return
+            }
+        }
+        items.insert(removed.item, at: min(removed.index, items.count))
+        save()
+    }
+
+    func forgetRemoval() { lastRemoved = nil }
+
     func importFile(_ url: URL) async throws -> MemeItem {
-        guard items.count < 100 else { throw ImportError.stashFull }
+        guard items.count < Self.capacity else { throw ImportError.stashFull }
         let directory = directory
         let item = try await Task.detached(priority: .userInitiated) { try MemeImageImport.copy(url, into: directory) }
             .value
-        guard items.count < 100 else {
+        guard items.count < Self.capacity else {
             if let name = item.fileName {
                 try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
             }
@@ -97,7 +143,7 @@ final class MemeLibrary: ObservableObject {
     }
 
     func restoreStarters() {
-        for item in Self.starters where !items.contains(where: { $0.id == item.id }) {
+        for item in Self.starters where items.count < Self.capacity && !items.contains(where: { $0.id == item.id }) {
             items.append(item)
         }
         save()
@@ -122,8 +168,8 @@ final class MemeLibrary: ObservableObject {
     func image(for item: MemeItem) -> NSImage {
         if let cached = images.object(forKey: item.id as NSString) { return cached }
         let image: NSImage
-        if let fileName = item.fileName, let loaded = NSImage(contentsOf: directory.appendingPathComponent(fileName)) {
-            image = loaded
+        if let fileName = item.fileName {
+            image = NSImage(contentsOf: directory.appendingPathComponent(fileName)) ?? Self.unreadableImage()
         } else {
             image = Self.starterImage(id: item.id)
         }
@@ -141,13 +187,37 @@ final class MemeLibrary: ObservableObject {
         return UUID(uuidString: String(name.dropLast(4))) != nil
     }
 
+    func retrySave() { save() }
+
+    func dismissProblem() { problem = nil }
+
     private func save() {
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(items).write(to: indexURL, options: .atomic)
-        } catch { NSLog("Could not save the companion’s meme stash: %@", error.localizedDescription) }
+            problem = nil
+        } catch {
+            NSLog("Could not save the companion’s meme stash: %@", error.localizedDescription)
+            problem = "The meme stash couldn’t be saved (\(error.localizedDescription))."
+        }
+    }
+
+    private static func unreadableImage() -> NSImage {
+        NSImage(size: CGSize(width: 640, height: 460), flipped: false) { rect in
+            NSColor(calibratedWhite: 0.9, alpha: 1).setFill()
+            rect.fill()
+            let centered = NSMutableParagraphStyle()
+            centered.alignment = .center
+            ("This image couldn’t be read." as NSString).draw(
+                in: CGRect(x: 40, y: 200, width: 560, height: 60),
+                withAttributes: [
+                    .font: NSFont.systemFont(ofSize: 30, weight: .medium),
+                    .foregroundColor: NSColor(calibratedWhite: 0.35, alpha: 1), .paragraphStyle: centered,
+                ])
+            return true
+        }
     }
 
     private static func starterImage(id: String) -> NSImage {

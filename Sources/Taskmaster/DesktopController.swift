@@ -26,6 +26,8 @@ final class DesktopController: NSObject {
     private(set) var framesPerSecond = FramePacing.active
     private var settleUntil: Double = 0
     private var coversWholeScreen = true
+    /// Sits for the Settings preview, so outfits can be chosen while the real companion is off on an errand.
+    private var posed = PetEngine(habitat: Habitat(left: 0, right: 1, floor: 0, ceiling: 1), seed: 1)
     private var wholeScreenUntil: Double = 0
     var isDragging = false
     var contextMenu: (() -> NSMenu)?
@@ -85,6 +87,7 @@ final class DesktopController: NSObject {
         scene.changeAtlas(model.atlas)
         for preview in model.previews { preview.changeAtlas(model.atlas) }
         engine.avatar = model.preferences.avatar
+        posed.avatar = model.preferences.avatar
         engine.mischief = model.preferences.mischief
         engine.quietWhenIdle = model.preferences.quietWhenIdle
         engine.customQuips = model.preferences.quipLines
@@ -95,6 +98,13 @@ final class DesktopController: NSObject {
             model.preferences.cursorHeists
             && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         engine.muddyPaws = model.preferences.muddyPaws
+        engine.wanders = model.preferences.wanders
+        engine.napsOnItsOwn = model.preferences.napsOnItsOwn
+        engine.curiousAboutCursor = model.preferences.curiousAboutCursor
+        engine.leavesNotes = model.preferences.leavesNotes
+        engine.peeksFromEdges = model.preferences.peeksFromEdges
+        engine.takesFlights = model.preferences.takesFlights
+        engine.stage = screen.frame.minX...screen.frame.maxX
         engine.visualScale = model.preferences.sanitized().size
         if !engine.allowsCursorHeists || engine.mischief < 0.75 { engine.cancelCursorHeist() }
         let habitat = Self.habitat(for: screen, scale: model.preferences.size)
@@ -128,7 +138,8 @@ final class DesktopController: NSObject {
         scene.render(
             engine: engine, preferences: model.preferences, origin: screen.frame.origin, reducedMotion: reduced)
         for preview in model.previews {
-            preview.render(engine: engine, preferences: model.preferences, origin: .zero, reducedMotion: reduced)
+            preview.render(
+                engine: engine(for: preview), preferences: model.preferences, origin: .zero, reducedMotion: reduced)
         }
         let events = engine.drainEvents()
         model.observe(events)
@@ -172,7 +183,7 @@ final class DesktopController: NSObject {
         let dt = min(0.1, now - lastTick)
         lastTick = now
         guard !suspended else { return }
-        if presentationTick % 12 == 0 { model.updateServices() }
+        if presentationTick % 12 == 0 || framesPerSecond <= FramePacing.hidden { model.updateServices() }
         let pointer = NSEvent.mouseLocation
         let localPoint = CGPoint(x: pointer.x - screen.frame.minX, y: pointer.y - screen.frame.minY)
         if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { engine.cancelCursorHeist() }
@@ -193,24 +204,30 @@ final class DesktopController: NSObject {
         }
         for preview in model.previews where preview.view?.window?.isVisible == true {
             preview.render(
-                engine: engine, preferences: model.preferences, origin: .zero,
+                engine: engine(for: preview), preferences: model.preferences, origin: .zero,
                 reducedMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
         }
         let events = engine.drainEvents()
         model.observe(events)
         scene.handle(events)
         for preview in model.previews { preview.handle(events) }
-        let cardHit = engine.delivery?.phase == .displaying && scene.memeAction(at: localPoint) != nil
-        let interactive =
-            engine.aerialRoute == nil
-            && (cardHit || scene.hitPet(localPoint) || scene.hitPaw(localPoint) || scene.hitBall(localPoint)
-                || scene.hitNote(localPoint))
-        // Every assignment is a window-server round trip, even when the value is unchanged.
-        let ignoresMouse = !(isDragging || interactive)
-        if panel.ignoresMouseEvents != ignoresMouse { panel.ignoresMouseEvents = ignoresMouse }
+        if model.isVisible {
+            let cardHit = engine.delivery?.phase == .displaying && scene.memeAction(at: localPoint) != nil
+            let interactive =
+                engine.aerialRoute == nil
+                && (cardHit || scene.hitPet(localPoint) || scene.hitPaw(localPoint) || scene.hitBall(localPoint)
+                    || scene.hitNote(localPoint))
+            // Every assignment is a window-server round trip, even when the value is unchanged.
+            let ignoresMouse = !(isDragging || interactive)
+            if panel.ignoresMouseEvents != ignoresMouse { panel.ignoresMouseEvents = ignoresMouse }
+        }
         pace(pointer: pointer, now: now)
         presentationTick += 1
         if presentationTick % 12 == 0 { model.syncPresentation() }
+    }
+
+    private func engine(for preview: PetScene) -> PetEngine {
+        preview === model.appearanceScene ? posed : engine
     }
 
     private func startTimer() {
@@ -227,10 +244,13 @@ final class DesktopController: NSObject {
         let roomUnderPointer = model.previews.contains {
             $0.view?.window?.isVisible == true && $0.view?.window?.frame.contains(pointer) == true
         }
+        let previewShowing = model.previews.contains { $0.view?.window?.isVisible == true }
         let wanted =
             roomUnderPointer
             ? FramePacing.active
-            : engine.framesPerSecond(pointer: Point(x: pointer.x, y: pointer.y), isDragging: isDragging)
+            : !model.isVisible && !previewShowing
+                ? FramePacing.hidden
+                : engine.framesPerSecond(pointer: Point(x: pointer.x, y: pointer.y), isDragging: isDragging)
         if wanted >= FramePacing.active { settleUntil = now + FramePacing.settleSeconds }
         if wanted != framesPerSecond, wanted > framesPerSecond || now >= settleUntil {
             framesPerSecond = wanted
@@ -282,10 +302,21 @@ final class DesktopController: NSObject {
         }
     }
 
+    /// Takes the companion to another display and has them walk to its middle.
+    func moveCompanion(to target: NSScreen) {
+        if Self.displayID(target) != Self.displayID(screen) { move(to: target) }
+        model.perform(.comeHere(target.visibleFrame.midX))
+    }
+
+    var currentDisplayID: UInt32 { Self.displayID(screen) }
+
     private func move(to newScreen: NSScreen) {
-        let changedDisplay = Self.displayID(screen) != Self.displayID(newScreen)
+        // A different display, or the same one at a new size: either way old routes no longer fit.
+        let changedDisplay =
+            Self.displayID(screen) != Self.displayID(newScreen) || screen.frame.size != newScreen.frame.size
         let habitat = Self.habitat(for: newScreen, scale: model.preferences.size)
         screen = newScreen
+        engine.stage = newScreen.frame.minX...newScreen.frame.maxX
         if changedDisplay || engine.habitat != habitat {
             engine.rehome(to: habitat, changedDisplay: changedDisplay)
         }
@@ -328,9 +359,13 @@ final class DesktopController: NSObject {
     @objc private func willSleep() {
         suspended = true
         canvas.isPaused = true
+        // Nothing to draw or time while the display sleeps; focus catches up from the wall clock on wake.
+        timer?.invalidate()
+        timer = nil
     }
     @objc private func didWake() {
         suspended = false
+        startTimer()
         lastTick = CACurrentMediaTime()
         canvas.isPaused = !model.isVisible
         displaysChanged()
@@ -345,7 +380,7 @@ final class DesktopController: NSObject {
         )
     }
 
-    private static func displayID(_ screen: NSScreen) -> UInt32 {
+    static func displayID(_ screen: NSScreen) -> UInt32 {
         (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0
     }
 }
@@ -374,7 +409,7 @@ final class PetInteractionView: SKView {
         if driver.engine.delivery?.phase == .displaying, !driver.scene.hitPet(point),
             let action = driver.scene.memeAction(at: point)
         {
-            if action == .putAway { driver.model.putMemeAway() } else { driver.model.keepMemeLonger() }
+            driver.model.handleCard(action)
             return
         }
         if driver.scene.hitNote(point) {

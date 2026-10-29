@@ -13,7 +13,7 @@ struct RitualButton: View {
         Button(action: action) {
             VStack(spacing: 9) {
                 Image(systemName: symbol).font(.system(size: 18)).foregroundStyle(Palette.orange)
-                Text(title).font(.system(size: 11, weight: .medium))
+                Text(title).font(.system(size: 12, weight: .medium))
             }
             .frame(maxWidth: .infinity)
             .frame(height: 67)

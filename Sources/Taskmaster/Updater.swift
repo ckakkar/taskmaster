@@ -85,6 +85,9 @@ enum AppInfo {
     static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
     }
+
+    static let repository = URL(string: "https://github.com/ckakkar/taskmaster")!
+    static let issues = URL(string: "https://github.com/ckakkar/taskmaster/issues/new")!
 }
 
 /// The paw in the menu bar, with a dot when an update is waiting.

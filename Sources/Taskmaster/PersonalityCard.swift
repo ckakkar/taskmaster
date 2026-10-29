@@ -17,7 +17,7 @@ struct PersonalityCard: View {
                     .frame(width: 25)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(personality.title).font(.system(size: 13, weight: .semibold))
-                    Text(personality.description).font(.system(size: 9))
+                    Text(personality.description).font(.system(size: 11))
                         .foregroundStyle(Palette.secondary)
                 }
                 Spacer(minLength: 0)

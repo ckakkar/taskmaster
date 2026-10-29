@@ -66,7 +66,7 @@ struct PetPreview: NSViewRepresentable {
             if let scene = scene as? PetScene, model?.deliveryPhase == .displaying {
                 let point = scene.convertPoint(fromView: convert(event.locationInWindow, from: nil))
                 if !scene.hitPet(point), let action = scene.memeAction(at: point) {
-                    if action == .putAway { model?.putMemeAway() } else { model?.keepMemeLonger() }
+                    model?.handleCard(action)
                     return
                 }
             }
@@ -77,7 +77,14 @@ struct PetPreview: NSViewRepresentable {
             lastPointer = convert(event.locationInWindow, from: nil)
             model?.perform(.pet)
         }
-        override func rightMouseDown(with event: NSEvent) { model?.perform(.surprise) }
+        /// The same menu as right-clicking the companion on the desktop.
+        override func rightMouseDown(with event: NSEvent) {
+            guard let model, let scene = scene as? PetScene,
+                scene.hitPet(scene.convertPoint(fromView: convert(event.locationInWindow, from: nil))),
+                let menu = model.desktop.contextMenu?()
+            else { return }
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
+        }
         override var acceptsFirstResponder: Bool { false }
     }
 }

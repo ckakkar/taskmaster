@@ -26,7 +26,7 @@ extension CompanionRoom {
                 VStack {
                     HStack {
                         Text("MEET \(model.preferences.name.uppercased())")
-                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
                             .tracking(2)
                             .foregroundStyle(Palette.secondary)
                         Spacer()
@@ -46,7 +46,7 @@ extension CompanionRoom {
                     .accessibilityAction { model.perform(.pet) }
                 HStack(spacing: 5) {
                     Image(systemName: model.state == .sleeping ? "moon.zzz.fill" : "heart.fill")
-                        .font(.system(size: 9))
+                        .font(.system(size: 10))
                     Text(
                         model.isPaused
                             ? "Just being here"
@@ -58,7 +58,7 @@ extension CompanionRoom {
                                         ?? (model.isFollowingCursor
                                             ? "Following your little arrow" : model.state.description)
                     )
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                 }
                 .foregroundStyle(Palette.secondary)
                 .padding(.horizontal, 11)
@@ -77,23 +77,33 @@ extension CompanionRoom {
                         : model.state == .flying
                             ? "Flying passes clicks through. Land gently to interact."
                             : "Move your cursor close. Stroke gently."
-                ).font(.system(size: 11))
+                ).font(.system(size: 12))
             }
             .foregroundStyle(Palette.secondary)
             .frame(maxWidth: .infinity)
 
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Image(systemName: model.focusActive ? "leaf.fill" : "leaf").foregroundStyle(Palette.green)
-                    Text(model.focusActive ? "Quiet company · \(model.focusLabel)" : "A little focus, together.")
-                        .font(.system(size: 13, weight: .medium, design: .serif))
+                    Image(systemName: model.focusActive || model.focusFinished ? "leaf.fill" : "leaf")
+                        .foregroundStyle(Palette.green)
+                    Text(
+                        model.focusActive
+                            ? "Quiet company · \(model.focusLabel)"
+                            : model.focusFinished ? "Focus complete. Nicely done." : "A little focus, together."
+                    )
+                    .font(.system(size: 14, weight: .medium, design: .serif))
                     Spacer()
-                    Button(model.focusActive ? "End" : "\(model.preferences.focusMinutes) min") {
+                    if model.focusFinished && !model.focusActive {
+                        Button("Thanks") { model.acknowledgeFocus() }.controlSize(.small)
+                    }
+                    Button(model.focusActive ? "End Focus" : "Start \(model.preferences.focusMinutes)-Minute Focus") {
                         if model.focusActive { model.stopFocus() } else { model.startFocus() }
                     }.controlSize(.small)
                 }
                 if model.focusActive {
                     ProgressView(value: model.focusProgress).tint(Palette.green)
+                    Text("Playing a game ends focus early. Settling down doesn’t pause the timer.")
+                        .font(.system(size: 11)).foregroundStyle(Palette.secondary)
                 } else {
                     HStack {
                         Button {
@@ -104,8 +114,8 @@ extension CompanionRoom {
                                 systemImage: "photo.on.rectangle")
                         }
                         Spacer()
-                        Button("My meme stash") { model.customize(.memes) }
-                    }.font(.system(size: 10)).buttonStyle(.plain).foregroundStyle(Palette.secondary)
+                        Button("My meme stash") { model.openSettings(.memes) }
+                    }.font(.system(size: 12)).buttonStyle(.plain).foregroundStyle(Palette.secondary)
                 }
             }
             .padding(14)

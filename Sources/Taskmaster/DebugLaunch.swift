@@ -35,6 +35,9 @@
 
         var preferences: Preferences {
             var result = Preferences()
+            // Workloads measure the companion, not the first-run welcome; the room opens unless --quiet.
+            result.hasOnboarded = true
+            result.openRoomAtLaunch = !CommandLine.arguments.contains("--quiet")
             result.avatar = avatar
             result.name = avatar.title
             result.quietWhenIdle = false

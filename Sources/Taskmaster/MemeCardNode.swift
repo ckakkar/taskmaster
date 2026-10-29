@@ -22,7 +22,7 @@ final class MemeCardNode: SKNode {
         paper.strokeColor = NSColor(calibratedRed: 0.71, green: 0.61, blue: 0.50, alpha: 0.32)
         paper.lineWidth = 1
         addChild(paper)
-        let title = label("a little delivery", size: 10, weight: .semibold)
+        let title = label("a little delivery · click to enlarge", size: 10, weight: .semibold)
         title.horizontalAlignmentMode = .left
         title.position = CGPoint(x: -118, y: 225)
         title.fontColor = NSColor(calibratedRed: 0.53, green: 0.43, blue: 0.35, alpha: 1)
@@ -62,7 +62,9 @@ final class MemeCardNode: SKNode {
         let point = convert(scenePoint, from: scene)
         guard CGRect(x: -133, y: 0, width: 266, height: 246).contains(point) else { return nil }
         if closeButton.contains(point) || (point.y < 37 && point.x > 0) { return .putAway }
-        return .keep
+        // Only the visible button keeps the card longer; anywhere else opens the picture.
+        if keepButton.contains(point) { return .keep }
+        return .open
     }
 
     private func label(_ text: String, size: Double, weight: NSFont.Weight) -> SKLabelNode {
@@ -73,5 +75,5 @@ final class MemeCardNode: SKNode {
         return label
     }
 
-    enum CardAction { case keep, putAway }
+    enum CardAction { case keep, putAway, open }
 }

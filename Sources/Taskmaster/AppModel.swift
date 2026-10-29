@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import CompanionCore
 import SwiftUI
 import UniformTypeIdentifiers
@@ -7,6 +8,9 @@ import UniformTypeIdentifiers
 final class AppModel: ObservableObject {
     @Published var preferences: Preferences {
         didSet {
+            // Keep what Settings shows the same as what the companion uses.
+            let bounded = preferences.bounded()
+            if bounded != preferences { preferences = bounded }
             saveTask?.cancel()
             saveTask = Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(400))
@@ -26,8 +30,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var state: PetState = .sitting
     @Published private(set) var interactions = 0
     @Published private(set) var isFollowingCursor = false
-    @Published var showPreferences = false
-    @Published var customizationSection = CustomizationSection.look
+    @Published var settingsPane = SettingsPane.general
     @Published var imageLink = ""
     @Published var isImporting = false
     @Published var libraryMessage: String?
@@ -36,6 +39,11 @@ final class AppModel: ObservableObject {
     @Published private(set) var focusActive = false
     @Published private(set) var focusLabel = "A little company while you work."
     @Published private(set) var focusProgress: Double = 0
+    /// A session finished and hasn't been acknowledged yet.
+    @Published private(set) var focusFinished = false
+    /// Why settings couldn't be read or saved, until a later save succeeds.
+    @Published private(set) var preferencesProblem: String?
+    @Published private(set) var importProgress: String?
 
     private(set) var atlas: PetAtlas
     private var atlasCache: [AvatarKind: PetAtlas] = [:]
@@ -50,13 +58,15 @@ final class AppModel: ObservableObject {
     /// The version of an update found by a background check, until it's installed or dismissed.
     @Published private(set) var availableUpdate: String?
     var openRoom: (() -> Void)?
-    var openCustomization: (() -> Void)?
-    var closeCustomization: (() -> Void)?
+    var openSettingsWindow: (() -> Void)?
+    var openWelcome: (() -> Void)?
     private let preferencesURL: URL
     private var lastSound: Double = -10
     private var saveTask: Task<Void, Never>?
     private var schedule: CompanionSchedule?
     private var lastServiceSecond = 0
+    private var importTask: Task<Void, Never>?
+    private var libraryChanges: AnyCancellable?
 
     init(atlas: PetAtlas) {
         self.atlas = atlas
@@ -79,12 +89,20 @@ final class AppModel: ObservableObject {
         }
         preferencesURL = directory.appendingPathComponent("preferences.json")
         library = MemeLibrary(directory: directory)
+        var unreadable: URL?
         if let data = try? Data(contentsOf: preferencesURL),
             let saved = try? JSONDecoder().decode(Preferences.self, from: data)
         {
             preferences = saved.sanitized().resolvingAvatar(available: Set(AvatarKind.available))
         } else {
             preferences = Preferences()
+            // Keep a file that can't be read at all, rather than overwriting it with defaults.
+            if FileManager.default.fileExists(atPath: preferencesURL.path) {
+                let backup = directory.appendingPathComponent(
+                    "preferences-unreadable-\(Int(Date().timeIntervalSince1970)).json")
+                try? FileManager.default.copyItem(at: preferencesURL, to: backup)
+                unreadable = backup
+            }
         }
         #if DEBUG
             if let launch = DebugLaunch.current { preferences = launch.preferences }
@@ -96,6 +114,13 @@ final class AppModel: ObservableObject {
         desktop = DesktopController(model: self, atlas: self.atlas)
         schedule = CompanionSchedule(preferences: preferences, now: Date().timeIntervalSince1970)
         updater.onAvailable = { [weak self] version in self?.availableUpdate = version }
+        // Views that watch the model also see the stash's problems and notices.
+        libraryChanges = library.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        if let unreadable {
+            preferencesProblem =
+                "Your settings file couldn’t be read, so Taskmaster started fresh. The old file was kept as \(unreadable.lastPathComponent)."
+        }
+        resumeFocusIfNeeded()
     }
 
     func select(_ personality: Personality) {
@@ -153,10 +178,23 @@ final class AppModel: ObservableObject {
         for event in events { if case .speech(let text) = event { lastQuip = text } }
     }
 
-    func customize(_ section: CustomizationSection) {
-        customizationSection = section
-        showPreferences = false
-        openCustomization?()
+    func openSettings(_ pane: SettingsPane) {
+        settingsPane = pane
+        openSettingsWindow?()
+    }
+
+    /// Every setting back to its default; the focus-session count and memes are kept.
+    func resetAllSettings() {
+        if preferences.avatar != .miso { selectAvatar(.miso) }
+        preferences = preferences.resettingSettings()
+        flushPreferences()
+    }
+
+    /// Where preferences and the meme stash live, shown in Finder.
+    func revealDataFolder() {
+        let folder = preferencesURL.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        NSWorkspace.shared.activateFileViewerSelecting([folder])
     }
 
     func addQuipPack(chaotic: Bool) {
@@ -179,7 +217,7 @@ final class AppModel: ObservableObject {
         guard desktop.engine.delivery == nil else { return }
         guard let chosen = item ?? library.choose() else {
             libraryMessage = "Add an image or enable a card in \(preferences.name)’s meme stash first."
-            customize(.memes)
+            openSettings(.memes)
             return
         }
         stopFocus()
@@ -189,11 +227,33 @@ final class AppModel: ObservableObject {
         schedule?.didDeliver(at: Date().timeIntervalSince1970)
     }
 
+    let memeViewer = MemeViewer()
+
+    func handleCard(_ action: MemeCardNode.CardAction) {
+        switch action {
+        case .putAway: putMemeAway()
+        case .keep: keepMemeLonger()
+        case .open: openDeliveredMeme()
+        }
+    }
+
+    func openDeliveredMeme() {
+        guard let id = desktop.engine.delivery?.memeID, let item = library.items.first(where: { $0.id == id })
+        else { return }
+        openMeme(item)
+    }
+
+    func openMeme(_ item: MemeItem) { memeViewer.show(library.image(for: item), title: item.title) }
+
+    // Asking for these should work straight away, even if the companion was settled down or tucked away.
     func putMemeAway() {
+        if isPaused { isPaused = false }
+        if !isVisible { isVisible = true }
         desktop.engine.recallDelivery()
         desktop.renderNow()
     }
     func keepMemeLonger() {
+        if isPaused { isPaused = false }
         desktop.engine.keepDeliveryLonger()
         desktop.renderNow()
     }
@@ -218,22 +278,71 @@ final class AppModel: ObservableObject {
         panel.canChooseDirectories = false
         panel.begin { [weak self] response in
             guard response == .OK, let self else { return }
-            let urls = panel.urls
-            self.isImporting = true
-            Task {
-                defer { self.isImporting = false }
-                var count = 0
-                var failure: String?
-                for url in urls {
-                    do {
-                        _ = try await self.library.importFile(url)
-                        count += 1
-                    } catch { failure = error.localizedDescription }
+            self.importFiles(panel.urls)
+        }
+    }
+
+    /// Imports images one by one, with progress, a way to stop, and every failure named.
+    func importFiles(_ urls: [URL], title: String? = nil, removeAfterwards: Bool = false) {
+        guard !isImporting, !urls.isEmpty else { return }
+        isImporting = true
+        libraryMessage = nil
+        importTask = Task { [weak self] in
+            guard let self else { return }
+            var added = 0
+            var failures: [String] = []
+            for (index, url) in urls.enumerated() {
+                if Task.isCancelled { break }
+                self.importProgress = urls.count == 1 ? "Adding…" : "Adding \(index + 1) of \(urls.count)…"
+                do {
+                    let item = try await self.library.importFile(url)
+                    if let title { self.library.rename(item.id, to: title) }
+                    added += 1
+                } catch {
+                    failures.append("\(url.lastPathComponent): \(error.localizedDescription)")
                 }
-                self.libraryMessage =
-                    "Added \(count) image\(count == 1 ? "" : "s")."
-                    + (failure.map { " " + $0 } ?? " Your originals stay where they are.")
+                if removeAfterwards { try? FileManager.default.removeItem(at: url) }
             }
+            self.libraryMessage = Self.importSummary(
+                added: added, total: urls.count, failures: failures, stopped: Task.isCancelled)
+            self.importProgress = nil
+            self.isImporting = false
+            self.importTask = nil
+        }
+    }
+
+    func cancelImport() { importTask?.cancel() }
+
+    nonisolated static func importSummary(added: Int, total: Int, failures: [String], stopped: Bool) -> String {
+        let images = "\(added) image\(added == 1 ? "" : "s")"
+        if stopped { return "Stopped after adding \(images)." }
+        if failures.isEmpty { return "Added \(images). Your originals stay where they are." }
+        let shown = failures.prefix(3).joined(separator: "\n")
+        let more = failures.count > 3 ? "\n…and \(failures.count - 3) more." : ""
+        return "Added \(added) of \(total). Couldn’t add:\n\(shown)\(more)"
+    }
+
+    /// Adds an image from the clipboard: copied files, or picture data from another app.
+    func pasteImage() {
+        let pasteboard = NSPasteboard.general
+        if let files = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+            as? [URL], !files.isEmpty
+        {
+            importFiles(files)
+            return
+        }
+        guard let image = NSImage(pasteboard: pasteboard), let tiff = image.tiffRepresentation,
+            let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:])
+        else {
+            libraryMessage = "There’s no image on the clipboard. Copy a picture or an image file, then try again."
+            return
+        }
+        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).png")
+        do {
+            try png.write(to: temporary)
+            importFiles([temporary], title: "Pasted image", removeAfterwards: true)
+        } catch {
+            libraryMessage = "That image couldn’t be pasted (\(error.localizedDescription))."
         }
     }
 
@@ -256,7 +365,12 @@ final class AppModel: ObservableObject {
         desktop.engine.cancelDelivery()
         desktop.engine.perform(.stopFollowing)
         desktop.engine.removeToy()
-        schedule?.startFocus(minutes: preferences.focusMinutes, now: Date().timeIntervalSince1970)
+        let now = Date().timeIntervalSince1970
+        schedule?.startFocus(minutes: preferences.focusMinutes, now: now)
+        // Remembered, so a relaunch picks the session back up.
+        preferences.focusStartedAt = now
+        preferences.focusEndsAt = schedule?.focus.deadline ?? 0
+        focusFinished = false
         focusActive = true
         desktop.engine.isFocusing = true
         desktop.applyPreferences()
@@ -269,6 +383,10 @@ final class AppModel: ObservableObject {
 
     func stopFocus() {
         schedule?.endFocus()
+        if preferences.focusEndsAt != 0 || preferences.focusStartedAt != 0 {
+            preferences.focusStartedAt = 0
+            preferences.focusEndsAt = 0
+        }
         focusActive = false
         focusProgress = 0
         focusLabel = "A little company while you work."
@@ -286,13 +404,11 @@ final class AppModel: ObservableObject {
             now: now,
             availability: .init(
                 visible: isVisible, paused: isPaused,
-                readyForDelivery: desktop.engine.delivery == nil && desktop.engine.cursorHeist == nil
-                    && desktop.engine.aerialRoute == nil
-                    && desktop.engine.state != .sleeping && desktop.engine.state != .carried
-                    && desktop.engine.state != .falling && !library.enabledItems.isEmpty))
+                readyForDelivery: desktop.engine.isFreeForInterruption && !library.enabledItems.isEmpty))
         if update?.focusCompleted == true {
             stopFocus()
             preferences.completedFocusSessions += 1
+            focusFinished = true
             desktop.engine.perform(.breakReminder)
             desktop.renderNow()
         }
@@ -306,9 +422,40 @@ final class AppModel: ObservableObject {
         if update?.deliverMeme == true { bringMeme() }
     }
 
+    func acknowledgeFocus() { focusFinished = false }
+
+    /// Picks up a focus session that was running when Taskmaster quit, or counts one that ended meanwhile.
+    private func resumeFocusIfNeeded() {
+        guard preferences.focusEndsAt > 0 else { return }
+        let now = Date().timeIntervalSince1970
+        if preferences.focusEndsAt > now {
+            schedule?.resumeFocus(startedAt: preferences.focusStartedAt, deadline: preferences.focusEndsAt)
+            focusActive = true
+            desktop.engine.isFocusing = true
+            desktop.applyPreferences()
+            lastServiceSecond = 0
+            updateServices()
+        } else {
+            preferences.focusStartedAt = 0
+            preferences.focusEndsAt = 0
+            preferences.completedFocusSessions += 1
+            focusFinished = true
+        }
+    }
+
     func flushPreferences() {
         saveTask?.cancel()
         savePreferences()
+    }
+
+    func retrySaving() {
+        flushPreferences()
+        library.retrySave()
+    }
+
+    func dismissProblem() {
+        preferencesProblem = nil
+        library.dismissProblem()
     }
 
     private func savePreferences() {
@@ -318,8 +465,10 @@ final class AppModel: ObservableObject {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             try encoder.encode(preferences.sanitized()).write(to: preferencesURL, options: .atomic)
+            if preferencesProblem?.hasPrefix("Settings couldn’t be saved") == true { preferencesProblem = nil }
         } catch {
             NSLog("Taskmaster could not save preferences: %@", error.localizedDescription)
+            preferencesProblem = "Settings couldn’t be saved (\(error.localizedDescription))."
         }
     }
 }

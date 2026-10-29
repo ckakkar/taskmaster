@@ -110,7 +110,10 @@ extension PetScene {
             contact.isHidden = engine.state != .walking || reducedMotion
         }
         nameLabel.text = preferences.name
-        nameLabel.position = CGPoint(x: point.x, y: point.y - 20)
+        // Below the paws when there's room; above the head when the floor is the screen's bottom edge
+        // (a hidden Dock), so the name never falls off the screen.
+        let below = point.y - 20
+        nameLabel.position = CGPoint(x: point.x, y: below >= 4 ? below : point.y + pet.size.height + 30)
         nameLabel.isHidden = isPreview || !preferences.showName
         sleepLabel.position = CGPoint(
             x: point.x + pet.size.width * 0.25, y: point.y + pet.size.height + 15 + breath * 3)
