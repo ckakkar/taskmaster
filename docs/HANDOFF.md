@@ -1,4 +1,4 @@
-# Handoff — 23 October 2026
+# Handoff — 29 October 2026
 
 ## Current scope
 
@@ -16,7 +16,7 @@ cooldown, and same-display wake preserves an active delivery.
 ## Automated verification
 
 `make format`, `make lint` and `make check` pass locally with Swift 6.4.
-The check reports **64 passing tests** and **20 validated transparent frames**.
+The check reports **83 passing tests** and **20 validated transparent frames**.
 The release bundle's `--self-check`, strict code-signature verification and
 DMG packaging also pass. The packaged resources contain no removed character art.
 GitHub Actions retains `macos-15` as the older-toolchain check; it runs lint,
@@ -41,6 +41,14 @@ Regression coverage includes:
   lids, pupils that follow the gaze, and no change outside the eyes, for both
   companions (skipped on machines without a Metal device, such as some CI runners).
 - Frame-rate and overlay-size decisions for calm, moving, held, flying and ball states.
+- Each behaviour switch stopping only what the companion chooses, never menu actions.
+- Hide and seek: leaving, peeking, being found, timing out, and being cancelled by
+  dragging, focus, deliveries, flights and display changes.
+- Lenient preference decoding (one bad field keeps the rest), live bounds, reset
+  keeping memes, focus history and onboarding, and focus resuming after relaunch.
+- The break reminder being heard with chatter off; deliveries only when free.
+- Meme stash rename, undo of a removal, save failures reported and cleared by a
+  retry, duplicate IDs dropped, the 100-card limit, and import summaries.
 
 ## Performance baseline
 
@@ -176,6 +184,31 @@ another app raised the idle baseline to 18–20% during the comparison, so treat
 the numbers as relative. The original build added about 31 points sitting and
 29 walking; the new build added about 12 and 8.
 
+## Settings, hide and seek and review fixes — 29 October 2026
+
+Inspired by Rebel Goose's polish, the scattered customization pages and the
+room's preferences popover became one Settings window with a sidebar (General,
+Companion, Behaviour, Sayings, Memes, Advanced). New: a first-run welcome,
+opening at login, a switch for each thing the companion does on its own, hide
+and seek from the screen edges, notes that type themselves out, a larger meme
+viewer, display moves from the menu, and focus that survives a relaunch. The
+findings from Codex's review were fixed in the same pass: unreadable settings
+are kept aside, failed saves are shown with Try Again, imports report progress
+and every failure and can be stopped, removals can be undone, cards can be
+renamed and dropped in or pasted, the room scrolls on short displays, small
+text and secondary colour were made more readable, the name label stays on
+screen with a hidden Dock, and the release workflow refuses to publish without
+an update key and never marks an older build as latest.
+
+Checked in the running debug app with isolated state: `--debug-snapshots`
+captured the welcome, the room at full and short heights, and all six Settings
+panes, including the posed wardrobe preview; the README screenshots come from
+those captures. A walking debug pet ran without errors at about 9% CPU and
+140 MB, in line with earlier debug runs. **Not** watched by a person yet: a
+full hide-and-seek round on the desktop, typed notes, the larger meme viewer,
+Move to display with two screens, the 4 fps tucked-away rate, and display
+sleep with the timer stopped.
+
 ## First release — 0.1.25
 
 The release workflow published Taskmaster 0.1.25 on 23 October 2026 with
@@ -239,6 +272,11 @@ not certified through an end-to-end hardware session.
   ID), so first launch needs **Open Anyway**. Installing an update through
   Sparkle's window (0.1.25 to the next release) still needs a person to click
   Install to confirm the whole path.
+
+- Not done yet: a dark appearance for the room and welcome (Settings follows
+  the system), search, sorting and multi-select in the meme stash, profiling
+  character-atlas loading on the main actor, and VoiceOver for the companion
+  and its props on the desktop (Settings and the room are standard controls).
 
 Use `TASKMASTER_STATE_DIR` for isolated QA. Do not replace the owner's normal
 Application Support preferences or meme stash with test fixtures.

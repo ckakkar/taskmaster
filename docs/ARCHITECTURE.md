@@ -17,11 +17,23 @@ changes preserve flight age and its deadline while remapping the route. Automati
 flights have a low decision probability and a minimum three-minute cooldown.
 Airborne desktop characters pass clicks through; the room provides Land gently.
 
+What the companion chooses to do is gated by per-behaviour switches (`wanders`,
+`peeksFromEdges`, `curiousAboutCursor`, `napsOnItsOwn`, `leavesNotes`,
+`takesFlights`); explicit actions from the menu or the room always work.
+`EdgePeek` (`PetEngine+Peek`) is hide and seek: the pet walks off the nearest
+edge of the display (`stage`, wider than the walkable habitat), waits, peeks
+back in and returns when found by petting or after a while. Anything else that
+needs the pet (dragging, focus, deliveries, flights, a display change) cancels
+a peek first. `isFreeForInterruption` is the single test for whether a meme may
+arrive. Functional speech, such as the break reminder, uses `announce` so it is
+heard even when chatter is off or only custom sayings are allowed.
+
 `CompanionSchedule` owns wall-clock focus and automatic meme scheduling. Quiet
 affection does not end focus; games do. Completion emits one break reminder and
 defers a coincident meme. Only automatic-delivery enablement and interval edits
 restart the meme deadline. Hidden, paused, sleeping, busy or airborne pets wait
 for a suitable delivery opportunity. Ending focus restores finite decision timers.
+`resumeFocus(startedAt:deadline:)` restores a session saved before a relaunch.
 
 ## Rendering and input
 
@@ -29,15 +41,22 @@ for a suitable delivery opportunity. Ending focus restores finite decision timer
 separate the frame renderer (`+Rendering`), particles/pawprints/notes/speech
 (`+Effects`), meme card placement (`+Memes`) and hit-testing (`+HitTesting`).
 Their method bodies and animation constants are unchanged by the file split.
-The room's header, introduction, controls and footer live in separate extensions;
-each customization editor, shared controls and `PetPreview` has its own file.
+The room's header, introduction, controls and footer live in separate extensions
+and the room scrolls when the display is shorter than it. Settings is one window
+(`SettingsWindow`, a sidebar of General, Companion, Behaviour, Sayings, Memes and
+Advanced panes, each in its own `Settings*.swift` file); `WelcomeWindow` greets
+first launches; `MemeViewer` shows a card at a readable size.
 
 An AppKit nonactivating transparent panel contains a SpriteKit scene. It floats
 over normal windows without taking keyboard focus. Mouse input passes through
 unless an opaque character pixel or interactive prop is hit; the panel's
 `ignoresMouseEvents` is only assigned when it changes, because every assignment
-is a window-server round trip. Pawprints never intercept input. The companion
-room and wardrobe use additional live scenes.
+is a window-server round trip, and is skipped entirely while the pet is tucked
+away. Pawprints never intercept input. The room's preview mirrors the desktop
+pet; the Settings wardrobe preview renders a separate, always-sitting engine,
+so outfits can be judged while the real companion is busy. Notes type themselves
+out letter by letter (instantly with Reduce Motion). A delivered card keeps
+itself longer only from its button; clicking the picture opens `MemeViewer`.
 
 Drawing and compositing a full-screen transparent layer costs GPU time on every
 frame, so the panel covers only a strip along the floor (`OverlayExtent`: the
@@ -81,18 +100,25 @@ or the pointer is near the pet or over the room; calm moments drop to 30 fps
 and sleep to 20 fps, but only after a second of calm, so landings and pose
 blends finish smoothly. Cursor petting and curiosity measure pointer movement
 per frame and were tuned at 60 fps, which is why a nearby pointer always keeps
-it. The loop suspends with display sleep. Hidden desktop and closed preview
-scenes avoid their per-frame rendering. One overlay occupies the current
+it. While the pet is tucked away and no preview is showing the loop drops to
+4 fps, enough for focus and delivery timers. Display sleep invalidates the timer
+entirely; wake restarts it. Hidden desktop and closed preview scenes avoid their
+per-frame rendering. One overlay occupies the current
 screen; moving to another display rehomes the simulation and cancels delivery. Waking
 the same display preserves delivery and retains the current screen when present.
 Size changes preserve an active delivery's route instead of teleporting the pet.
 
 ## Images, persistence and lifecycle
 
-Preferences, custom quips, completed focus count and the meme index persist
-under Application Support/Taskmaster, or `TASKMASTER_STATE_DIR`. Active focus,
-position, interactions and transient props reset at relaunch. Preferences use
-backward-compatible defaults, sanitization, debounced saves and atomic writes.
+Preferences, custom quips, completed focus count, an active focus session and
+the meme index persist under Application Support/Taskmaster, or
+`TASKMASTER_STATE_DIR`. Position, interactions and transient props reset at
+relaunch; a focus session that ended while Taskmaster was closed is counted.
+Preferences decode field by field, so one bad value falls back to its default
+without losing the rest, and are bounded on every change, sanitized, saved
+debounced and atomically. A file that can't be decoded at all is copied to
+`preferences-unreadable-<time>.json` before defaults are used, and a failed save
+shows a notice with Try Again in the room and Settings.
 
 `MemeLibrary` stores metadata on the main actor. `MemeImageImport` performs
 ImageIO conversion in a detached task; files are limited to 25 MB and normalized
@@ -105,11 +131,20 @@ A damaged index is copied to a uniquely named recovery file. The library
 rebuilds entries from its UUID-named PNG copies, so images remain discoverable;
 original titles and disabled flags cannot be reconstructed from corrupt JSON.
 The rebuilt index is saved immediately so later launches do not duplicate backups.
-Removing a card trashes only the library copy. Starter definitions and bubble
-colors each have a single source of truth.
+Duplicate IDs are dropped on load. The stash holds up to 100 cards. Removing a
+card moves only the library copy to the Trash and can be undone; titles can be
+edited. Imports run one file at a time with progress, can be stopped, and name
+every failure. Starter definitions and bubble colors each have a single source
+of truth.
 
 The menu-bar app survives closure of its ordinary windows, with explicit hide,
-pause and quit actions. No login item is installed. Sound is opt-in.
+pause and quit actions. Opening at login is opt-in (`SMAppService`, offered in
+the welcome and General). The room opens at launch only if asked to. Sound is
+opt-in.
+
+Debug builds accept `--debug-snapshots <folder>`, which captures the welcome, the
+room and every Settings pane by window number and quits (it needs Screen
+Recording permission for the launching terminal).
 
 ## Updates and packaging
 

@@ -3,8 +3,8 @@
 ## Structure and boundaries
 
 - `Sources/CompanionCore/`: deterministic behavior, preferences, games, physics and scheduling. **Never import AppKit, SwiftUI, SpriteKit or other UI code here.**
-- `Sources/Taskmaster/`: native macOS application, transparent overlay, rendering, customization and image library.
-  `PetScene+*.swift` separates rendering, effects, memes and hit-testing; room and customization sections each have their own file.
+- `Sources/Taskmaster/`: native macOS application, transparent overlay, rendering, Settings, welcome and image library.
+  `PetScene+*.swift` separates rendering, effects, memes and hit-testing; room sections and Settings panes (`Settings*.swift`) each have their own file.
 - `Sources/Taskmaster/Resources/`: character images and artwork metadata.
 - `Tests/CompanionCoreTests/`: Swift Testing behavior and regression tests.
 - `Tests/TaskmasterTests/`: native rendering, meme recovery and image-import tests.
@@ -27,7 +27,7 @@ make measure # CPU/memory matrix on an optimized build with the debug workloads
 
 Every push to `main` that passes Check is released automatically (see `docs/RELEASING.md`), so commit subjects become release notes. `--self-check` validates character textures and landmarks without starting the companion. Use `TASKMASTER_STATE_DIR="$PWD/.local" .build/debug/Taskmaster` for isolated development state. Never commit this directory or personal preferences/images.
 
-Debug builds accept `--debug-state sitting|walking|sleeping|flying` and `--debug-avatar miso|toothless`; `--quiet` omits the room. Miso cannot fly. These workloads use isolated defaults and hold their state. `scripts/measure-performance.py` records CPU/RSS; `scripts/profile-performance.py` profiles the worst recorded case. Keep measurements separate from optimization work.
+Debug builds accept `--debug-state sitting|walking|sleeping|flying` and `--debug-avatar miso|toothless`; `--quiet` omits the room. `--debug-snapshots <folder>` saves the welcome, room and every Settings pane as PNGs and quits; use it with an isolated `TASKMASTER_STATE_DIR` to review layouts. Miso cannot fly. These workloads use isolated defaults and hold their state. `scripts/measure-performance.py` records CPU/RSS; `scripts/profile-performance.py` profiles the worst recorded case. Keep measurements separate from optimization work.
 
 ## Style and tests
 
