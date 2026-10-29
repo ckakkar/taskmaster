@@ -81,6 +81,17 @@ public struct Preferences: Codable, Equatable, Sendable {
     public var muddyPaws = true
     public var pawprintSeconds: Double = 35
     public var cursorHeists = false
+    public var wanders = true
+    public var napsOnItsOwn = true
+    public var curiousAboutCursor = true
+    public var leavesNotes = true
+    public var peeksFromEdges = true
+    public var takesFlights = true
+    public var openRoomAtLaunch = false
+    public var hasOnboarded = false
+    /// A focus session in progress (wall-clock seconds), so it survives a relaunch; 0 when there isn't one.
+    public var focusStartedAt: Double = 0
+    public var focusEndsAt: Double = 0
 
     public init() {}
 
@@ -89,36 +100,75 @@ public struct Preferences: Codable, Equatable, Sendable {
         case customQuips, includeBuiltInQuips, chatter, bubbleStyle, speechSeconds
         case autoMemes, memeInterval, memeStaySeconds, focusMinutes, completedFocusSessions
         case coat, accessory, accessoryColor, muddyPaws, pawprintSeconds, cursorHeists
+        case wanders, napsOnItsOwn, curiousAboutCursor, leavesNotes, peeksFromEdges, takesFlights
+        case openRoomAtLaunch, hasOnboarded, focusStartedAt, focusEndsAt
     }
 
     public init(from decoder: Decoder) throws {
         self.init()
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        name = try values.decodeIfPresent(String.self, forKey: .name) ?? name
+        name = (try? values.decodeIfPresent(String.self, forKey: .name)) ?? name
         avatar = (try? values.decode(AvatarKind.self, forKey: .avatar)) ?? avatar
-        mischief = try values.decodeIfPresent(Double.self, forKey: .mischief) ?? mischief
-        size = try values.decodeIfPresent(Double.self, forKey: .size) ?? size
-        sound = try values.decodeIfPresent(Bool.self, forKey: .sound) ?? sound
-        allSpaces = try values.decodeIfPresent(Bool.self, forKey: .allSpaces) ?? allSpaces
-        quietWhenIdle = try values.decodeIfPresent(Bool.self, forKey: .quietWhenIdle) ?? quietWhenIdle
-        showName = try values.decodeIfPresent(Bool.self, forKey: .showName) ?? showName
-        customQuips = try values.decodeIfPresent(String.self, forKey: .customQuips) ?? customQuips
-        includeBuiltInQuips = try values.decodeIfPresent(Bool.self, forKey: .includeBuiltInQuips) ?? includeBuiltInQuips
-        chatter = try values.decodeIfPresent(Double.self, forKey: .chatter) ?? chatter
+        mischief = (try? values.decodeIfPresent(Double.self, forKey: .mischief)) ?? mischief
+        size = (try? values.decodeIfPresent(Double.self, forKey: .size)) ?? size
+        sound = (try? values.decodeIfPresent(Bool.self, forKey: .sound)) ?? sound
+        allSpaces = (try? values.decodeIfPresent(Bool.self, forKey: .allSpaces)) ?? allSpaces
+        quietWhenIdle = (try? values.decodeIfPresent(Bool.self, forKey: .quietWhenIdle)) ?? quietWhenIdle
+        showName = (try? values.decodeIfPresent(Bool.self, forKey: .showName)) ?? showName
+        customQuips = (try? values.decodeIfPresent(String.self, forKey: .customQuips)) ?? customQuips
+        includeBuiltInQuips =
+            (try? values.decodeIfPresent(Bool.self, forKey: .includeBuiltInQuips)) ?? includeBuiltInQuips
+        chatter = (try? values.decodeIfPresent(Double.self, forKey: .chatter)) ?? chatter
         bubbleStyle = (try? values.decode(BubbleStyle.self, forKey: .bubbleStyle)) ?? bubbleStyle
-        speechSeconds = try values.decodeIfPresent(Double.self, forKey: .speechSeconds) ?? speechSeconds
-        autoMemes = try values.decodeIfPresent(Bool.self, forKey: .autoMemes) ?? autoMemes
-        memeInterval = try values.decodeIfPresent(Double.self, forKey: .memeInterval) ?? memeInterval
-        memeStaySeconds = try values.decodeIfPresent(Double.self, forKey: .memeStaySeconds) ?? memeStaySeconds
-        focusMinutes = try values.decodeIfPresent(Int.self, forKey: .focusMinutes) ?? focusMinutes
+        speechSeconds = (try? values.decodeIfPresent(Double.self, forKey: .speechSeconds)) ?? speechSeconds
+        autoMemes = (try? values.decodeIfPresent(Bool.self, forKey: .autoMemes)) ?? autoMemes
+        memeInterval = (try? values.decodeIfPresent(Double.self, forKey: .memeInterval)) ?? memeInterval
+        memeStaySeconds = (try? values.decodeIfPresent(Double.self, forKey: .memeStaySeconds)) ?? memeStaySeconds
+        focusMinutes = (try? values.decodeIfPresent(Int.self, forKey: .focusMinutes)) ?? focusMinutes
         completedFocusSessions =
-            try values.decodeIfPresent(Int.self, forKey: .completedFocusSessions) ?? completedFocusSessions
+            (try? values.decodeIfPresent(Int.self, forKey: .completedFocusSessions)) ?? completedFocusSessions
         coat = (try? values.decode(CoatStyle.self, forKey: .coat)) ?? coat
         accessory = (try? values.decode(AccessoryStyle.self, forKey: .accessory)) ?? accessory
         accessoryColor = (try? values.decode(AccessoryColor.self, forKey: .accessoryColor)) ?? accessoryColor
-        muddyPaws = try values.decodeIfPresent(Bool.self, forKey: .muddyPaws) ?? muddyPaws
-        pawprintSeconds = try values.decodeIfPresent(Double.self, forKey: .pawprintSeconds) ?? pawprintSeconds
-        cursorHeists = try values.decodeIfPresent(Bool.self, forKey: .cursorHeists) ?? cursorHeists
+        muddyPaws = (try? values.decodeIfPresent(Bool.self, forKey: .muddyPaws)) ?? muddyPaws
+        pawprintSeconds = (try? values.decodeIfPresent(Double.self, forKey: .pawprintSeconds)) ?? pawprintSeconds
+        cursorHeists = (try? values.decodeIfPresent(Bool.self, forKey: .cursorHeists)) ?? cursorHeists
+        wanders = (try? values.decodeIfPresent(Bool.self, forKey: .wanders)) ?? wanders
+        napsOnItsOwn = (try? values.decodeIfPresent(Bool.self, forKey: .napsOnItsOwn)) ?? napsOnItsOwn
+        curiousAboutCursor = (try? values.decodeIfPresent(Bool.self, forKey: .curiousAboutCursor)) ?? curiousAboutCursor
+        leavesNotes = (try? values.decodeIfPresent(Bool.self, forKey: .leavesNotes)) ?? leavesNotes
+        peeksFromEdges = (try? values.decodeIfPresent(Bool.self, forKey: .peeksFromEdges)) ?? peeksFromEdges
+        takesFlights = (try? values.decodeIfPresent(Bool.self, forKey: .takesFlights)) ?? takesFlights
+        openRoomAtLaunch = (try? values.decodeIfPresent(Bool.self, forKey: .openRoomAtLaunch)) ?? openRoomAtLaunch
+        hasOnboarded = (try? values.decodeIfPresent(Bool.self, forKey: .hasOnboarded)) ?? hasOnboarded
+        focusStartedAt = (try? values.decodeIfPresent(Double.self, forKey: .focusStartedAt)) ?? focusStartedAt
+        focusEndsAt = (try? values.decodeIfPresent(Double.self, forKey: .focusEndsAt)) ?? focusEndsAt
+    }
+
+    /// Every setting back to its default, keeping the focus-session count and the welcome already seen.
+    public func resettingSettings() -> Preferences {
+        var fresh = Preferences()
+        fresh.completedFocusSessions = completedFocusSessions
+        fresh.hasOnboarded = hasOnboarded
+        fresh.focusStartedAt = focusStartedAt
+        fresh.focusEndsAt = focusEndsAt
+        return fresh
+    }
+
+    /// The limits applied while editing, so what Settings shows is what the companion uses. Unlike
+    /// `sanitized()` it leaves the name's spaces and the sayings alone while you type.
+    public func bounded() -> Preferences {
+        var copy = self
+        if copy.name.count > 24 { copy.name = String(copy.name.prefix(24)) }
+        copy.mischief = mischief.isFinite ? mischief.clamped(to: 0...1) : 0.25
+        copy.size = size.isFinite ? size.clamped(to: 0.65...1.5) : 1
+        copy.chatter = chatter.isFinite ? chatter.clamped(to: 0...1) : 0.35
+        copy.speechSeconds = speechSeconds.isFinite ? speechSeconds.clamped(to: 2...12) : 4
+        copy.memeInterval = memeInterval.isFinite ? memeInterval.clamped(to: 120...3_600) : 600
+        copy.memeStaySeconds = memeStaySeconds.isFinite ? memeStaySeconds.clamped(to: 8...120) : 20
+        copy.focusMinutes = min(90, max(1, focusMinutes))
+        copy.pawprintSeconds = pawprintSeconds.isFinite ? pawprintSeconds.clamped(to: 8...90) : 35
+        return copy
     }
 
     public var quipLines: [String] {

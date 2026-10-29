@@ -5,6 +5,8 @@ public enum FramePacing {
     public static let active = 60
     public static let calm = 30
     public static let asleep = 20
+    /// Tucked away with no room open: only timers (focus, deliveries) need the loop.
+    public static let hidden = 4
     /// Lower rates wait this long after the last active moment, so landings and pose blends settle smoothly.
     public static let settleSeconds = 1.0
 }

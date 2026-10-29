@@ -2,7 +2,7 @@ import Foundation
 
 public enum PetState: String, CaseIterable, Sendable {
     case idle, walking, sitting, sleeping, carried, falling, happy, playing, scheming, curious, highFive, stretching,
-        sniffing, flying
+        sniffing, flying, peeking
 
     public var description: String {
         switch self {
@@ -19,6 +19,7 @@ public enum PetState: String, CaseIterable, Sendable {
         case .highFive: "A tiny high five?"
         case .stretching: "A biiig little stretch"
         case .sniffing: "Sniffing out a snack"
+        case .peeking: "Did you notice me?"
         case .flying: "A little dragon. A big sky."
         }
     }
@@ -29,7 +30,7 @@ public enum PetAction: Sendable {
     case comeHere(Double)
     case surprise
     case offerHighFive, followCursor, stopFollowing, findTreat, stretch, saySomething, breakReminder
-    case muddyZoomies, signature
+    case muddyZoomies, signature, hideAndSeek
 }
 
 public enum PetEvent: Sendable {
@@ -69,6 +70,9 @@ public struct PetEngine: Sendable {
     public internal(set) var delivery: MemeDelivery?
     public internal(set) var cursorHeist: CursorHeist?
     public internal(set) var aerialRoute: AerialRoute?
+    public internal(set) var peek: EdgePeek?
+    /// The screen's horizontal extent, wider than the habitat; edge peeks need it.
+    public var stage: ClosedRange<Double>?
     public var avatar: AvatarKind = .miso
     public var allowsCursorHeists = false { didSet { if !allowsCursorHeists { cancelCursorHeist() } } }
     public var muddyPaws = true
@@ -84,9 +88,21 @@ public struct PetEngine: Sendable {
     public var mischief: Double = 0.25
     public var isPaused = false { didSet { if isPaused { cancelCursorHeist() } } }
     public var quietWhenIdle = true
+    // Each behaviour the companion chooses on its own has its own switch; explicit actions always work.
+    public var wanders = true
+    public var napsOnItsOwn = true
+    public var curiousAboutCursor = true
+    public var leavesNotes = true
+    public var peeksFromEdges = true
+    public var takesFlights = true
     public var isFocusing = false {
         didSet {
-            if isFocusing { cancelCursorHeist() } else if oldValue { transition(to: .sitting, for: 4) }
+            if isFocusing {
+                cancelCursorHeist()
+                cancelPeek()
+            } else if oldValue {
+                transition(to: .sitting, for: 4)
+            }
         }
     }
     public var customQuips: [String] = []
@@ -119,6 +135,7 @@ public struct PetEngine: Sendable {
     var aerialUntil: Double = 0
     var afterLanding: PetAction?
     var nextAerialAt: Double = 90
+    var nextPeekAt: Double = 75
     #if DEBUG
         var debugState: DebugPetState?
     #endif
@@ -149,6 +166,13 @@ public struct PetEngine: Sendable {
             route.end = map(route.end)
             position = map(position)
             aerialRoute = route
+            return
+        }
+        let desk = newHabitat.left...newHabitat.right
+        if let route = peek, !desk.contains(route.returnX) { cancelPeek() }
+        if let route = delivery, !desk.contains(route.dropPetX) { cancelDelivery() }
+        if peek != nil {
+            position.y = newHabitat.floor
             return
         }
         if delivery != nil {
@@ -232,6 +256,7 @@ public struct PetEngine: Sendable {
             return
         }
         if updateDelivery(dt) { return }
+        if updatePeek(dt) { return }
         if !allowsCursorHeists || mischief < 0.75 { cancelCursorHeist() }
         if updateCursorHeist(dt, cursor: cursor) { return }
         if allowsCursorHeists, mischief >= 0.75, elapsed >= nextHeist, userIdle < 20, let cursor {
@@ -337,6 +362,7 @@ public struct PetEngine: Sendable {
                 return
             }
         }
+        if handleDuringPeek(action) { return }
         interactionCount += 1
         let speaking: Bool = if case .saySomething = action { true } else { false }
         if !speaking {
@@ -418,21 +444,19 @@ public struct PetEngine: Sendable {
             speak("Small paws. Big fan of you.")
         case .breakReminder:
             transition(to: .stretching, for: 3.2)
-            speak("A little break? Uncurl your shoulders. I’ll keep your place.")
+            announce("A little break? Uncurl your shoulders. I’ll keep your place.")
         case .muddyZoomies:
-            toy = nil
-            muddyUntil = elapsed + 12
-            lastPrank = elapsed
-            let middle = (habitat.left + habitat.right) / 2
-            targetX = position.x > middle ? habitat.left + 30 : habitat.right - 30
-            transition(to: .walking, for: 1)
-            speak("I have made several artistic decisions.")
+            startMuddyZoomies()
         case .signature:
-            if avatar == .miso { perform(.muddyZoomies) } else { startAerialTour() }
+            if avatar == .miso { startMuddyZoomies() } else { startAerialTour() }
+        case .hideAndSeek:
+            toy = nil
+            if !beginPeek() { transition(to: .sitting, for: 4) }
         }
     }
 
     public mutating func beginDrag(at pointer: Point) {
+        cancelPeek()
         cancelAerialTour()
         cancelCursorHeist()
         cancelDelivery()
@@ -501,18 +525,38 @@ public struct PetEngine: Sendable {
         }
     }
 
+    mutating func startMuddyZoomies() {
+        toy = nil
+        muddyUntil = elapsed + 12
+        lastPrank = elapsed
+        let middle = (habitat.left + habitat.right) / 2
+        targetX = position.x > middle ? habitat.left + 30 : habitat.right - 30
+        transition(to: .walking, for: 1)
+        speak("I have made several artistic decisions.")
+    }
+
+    /// Whether nothing is under way that an automatic activity, such as a meme delivery, would interrupt.
+    public var isFreeForInterruption: Bool {
+        delivery == nil && peek == nil && aerialRoute == nil && cursorHeist == nil && toy == nil && snack == nil
+            && !isFollowingCursor && elapsed >= followingCursorUntil && !isFocusing && !isPaused
+            && (state == .sitting || state == .idle || state == .walking)
+    }
+
     mutating func decide(cursor: Point?) {
         let roll = random.unit()
-        if avatar != .miso, mischief > 0.3, elapsed >= nextAerialAt, roll < 0.06 {
+        if takesFlights, avatar != .miso, mischief > 0.3, elapsed >= nextAerialAt, roll < 0.06 {
             startAerialTour()
             return
         }
-        if mischief > 0.45, elapsed - lastPrank > 28, roll < 0.16 + mischief * 0.12 {
+        let walkLimit = 0.7 + mischief * 0.2
+        if leavesNotes, mischief > 0.45, elapsed - lastPrank > 28, roll < 0.16 + mischief * 0.12 {
             makeMischief()
-        } else if roll < 0.22 && mischief < 0.35 {
+        } else if napsOnItsOwn, roll < 0.22 && mischief < 0.35 {
             isUserNap = false
             transition(to: .sleeping, for: random.value(in: 25...45))
-        } else if roll < 0.7 + mischief * 0.2 {
+        } else if peeksFromEdges, roll >= walkLimit, roll <= 0.91, elapsed >= nextPeekAt, beginPeek() {
+            return
+        } else if wanders, roll < walkLimit {
             if mischief > 0.3, let cursor, random.unit() < 0.4 {
                 targetX = cursor.x.clamped(to: habitat.left...habitat.right)
             } else {

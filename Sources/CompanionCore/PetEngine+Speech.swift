@@ -15,6 +15,11 @@ extension PetEngine {
         return lines[index].replacingOccurrences(of: "{name}", with: companionName)
     }
 
+    /// Speech that does a job, such as a break reminder: always said, whatever the voice settings.
+    mutating func announce(_ text: String) {
+        events.append(.speech(text.replacingOccurrences(of: "{name}", with: companionName)))
+    }
+
     mutating func speak(_ fallback: String) {
         if let text = pickQuip(fallback) { events.append(.speech(text)) }
     }

@@ -4,6 +4,7 @@ extension PetEngine {
     public mutating func beginDelivery(memeID: String, screenLeft: Double, screenRight: Double, staySeconds: Double) {
         guard delivery == nil, screenLeft.isFinite, screenRight.isFinite, screenRight > screenLeft else { return }
         cancelCursorHeist()
+        cancelPeek()
         if aerialRoute != nil {
             afterLanding = nil
             landAerialTour()
@@ -67,7 +68,9 @@ extension PetEngine {
         let range =
             min(habitat.left, min(route.exitX, route.targetX))...max(habitat.right, max(route.exitX, route.targetX))
         if abs(position.x - route.targetX) > 3 {
-            walk(toward: route.targetX, dt: dt, speed: 145 + 35 * mischief, bounds: range)
+            // Long legs speed up so even a wide screen is crossed in about four seconds.
+            let pace = max(145 + 35 * mischief, abs(route.targetX - route.legStartX) / 4)
+            walk(toward: route.targetX, dt: dt, speed: pace, bounds: range)
             if route.isCarrying {
                 facingRight = route.carryDirection < 0
                 route.cardPosition = Point(x: position.x - route.carryDirection * 200, y: habitat.floor + 12)

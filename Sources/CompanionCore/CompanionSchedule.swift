@@ -31,6 +31,9 @@ public struct CompanionSchedule: Sendable {
         interval = clean.memeInterval
     }
     public mutating func startFocus(minutes: Int, now: Double) { focus.start(minutes: minutes, now: now) }
+    public mutating func resumeFocus(startedAt: Double, deadline: Double) {
+        focus.resume(startedAt: startedAt, deadline: deadline)
+    }
     public mutating func endFocus() { focus.cancel() }
     public mutating func didDeliver(at now: Double) { nextMeme = now + interval }
 

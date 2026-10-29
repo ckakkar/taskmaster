@@ -232,6 +232,7 @@ final class PetAtlas {
         case .scheming: .mischievous
         case .highFive: .highFive
         case .stretching, .sniffing: .playBow
+        case .peeking: .standing
         }
     }
 

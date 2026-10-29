@@ -71,7 +71,7 @@ private let available = CompanionSchedule.Availability(visible: true, paused: fa
     for action in [PetAction.pet, .treat, .saySomething] { #expect(!CompanionSchedule.endsFocus(action)) }
     for action in [
         PetAction.play, .nap, .wake, .comeHere(200), .surprise, .offerHighFive,
-        .followCursor, .stopFollowing, .findTreat, .stretch, .muddyZoomies, .breakReminder,
+        .followCursor, .stopFollowing, .findTreat, .stretch, .muddyZoomies, .breakReminder, .hideAndSeek,
     ] {
         #expect(CompanionSchedule.endsFocus(action))
     }
@@ -126,6 +126,14 @@ private let available = CompanionSchedule.Availability(visible: true, paused: fa
     p.muddyPaws = false
     p.pawprintSeconds = 70
     p.cursorHeists = true
+    p.wanders = false
+    p.napsOnItsOwn = false
+    p.curiousAboutCursor = false
+    p.leavesNotes = false
+    p.peeksFromEdges = false
+    p.takesFlights = false
+    p.openRoomAtLaunch = true
+    p.hasOnboarded = true
     let data = try JSONEncoder().encode(p)
     let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
     #expect(Set(Mirror(reflecting: p).children.compactMap(\.label)) == Set(object.keys))

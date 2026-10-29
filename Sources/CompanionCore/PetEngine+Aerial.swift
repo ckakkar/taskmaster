@@ -4,6 +4,7 @@ extension PetEngine {
     public mutating func startAerialTour() {
         guard avatar == .toothless, !isFocusing, !isPaused else { return }
         cancelCursorHeist()
+        cancelPeek()
         cancelDelivery()
         toy = nil
         snack = nil
@@ -38,7 +39,10 @@ extension PetEngine {
     }
 
     public mutating func rehome(to habitat: Habitat, changedDisplay: Bool) {
-        if changedDisplay { cancelDelivery() }
+        if changedDisplay {
+            cancelDelivery()
+            cancelPeek()
+        }
         changeHabitat(habitat)
     }
 

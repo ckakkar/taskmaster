@@ -3,7 +3,7 @@ import Foundation
 extension PetEngine {
     @discardableResult
     public mutating func beginCursorHeist(at cursor: Point) -> Bool {
-        guard aerialRoute == nil, allowsCursorHeists, mischief >= 0.75, !isPaused, !isFocusing,
+        guard aerialRoute == nil, peek == nil, allowsCursorHeists, mischief >= 0.75, !isPaused, !isFocusing,
             cursorHeist == nil, delivery == nil, toy == nil, snack == nil,
             state == .sitting || state == .idle || state == .walking,
             cursor.x.isFinite, cursor.y.isFinite,
@@ -63,7 +63,7 @@ extension PetEngine {
 
     mutating func observeCursor(_ cursor: Point?, contact: Bool, dt: Double) {
         defer { previousCursor = cursor }
-        guard aerialRoute == nil, delivery == nil, cursorHeist == nil, !isFocusing else { return }
+        guard aerialRoute == nil, peek == nil, delivery == nil, cursorHeist == nil, !isFocusing else { return }
         guard let cursor, let previousCursor else { return }
         let distance = cursor.distance(to: previousCursor)
         if contact {
@@ -78,7 +78,8 @@ extension PetEngine {
         if nearby, state == .sitting || state == .idle, abs(cursor.x - position.x) > 95 {
             facingRight = cursor.x > position.x
         }
-        guard mischief > 0.3, toy == nil, snack == nil, !isFollowingCursor, nearby, distance > 1, distance < 65,
+        guard curiousAboutCursor, mischief > 0.3, toy == nil, snack == nil, !isFollowingCursor, nearby, distance > 1,
+            distance < 65,
             state == .sitting || state == .idle || state == .walking,
             elapsed - lastCursorGame > 8
         else {
