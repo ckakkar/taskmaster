@@ -52,6 +52,15 @@ jobs:
             echo "v$base.$build is already released."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
+          # Only a newer build becomes "latest": installed copies read the latest release's appcast, so
+          # rebuilding an older commit by hand must never replace it.
+          current=$(gh release view --json tagName --jq .tagName 2>/dev/null || true)
+          if [ -n "$current" ] && [ "$build" -le "${current##*.}" ]; then
+            echo "::notice::$current is newer than build $build, so this release won't be marked latest."
+            echo "latest=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "latest=true" >> "$GITHUB_OUTPUT"
+          fi
 
       # A stable signing identity keeps the app's identity the same across updates.
       - name: Signing identity
@@ -121,13 +130,15 @@ jobs:
           git log --no-merges --pretty='- %s' $range > notes.md
           [ -s notes.md ] || echo "- Maintenance release" > notes.md
 
-          if [ -n "$SPARKLE_PRIVATE_KEY" ]; then
-            signature=$(printf '%s' "$SPARKLE_PRIVATE_KEY" | .build/artifacts/sparkle/Sparkle/bin/sign_update dist/Taskmaster.zip --ed-key-file -)
-            python3 scripts/appcast.py --version "$VERSION" --build "$BUILD" \
-              --url "https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/Taskmaster.zip" \
-              --signature "$signature" --notes notes.md > dist/appcast.xml
-          else
-            echo "::warning::SPARKLE_PRIVATE_KEY isn't set, so this release has no appcast and installed copies won't update to it."
+          # Without a signed appcast, a "latest" release would break update checks for everyone, so stop here.
+          if [ -z "$SPARKLE_PRIVATE_KEY" ]; then
+            echo "::error::SPARKLE_PRIVATE_KEY isn't set; refusing to publish a release without a signed appcast."
+            exit 1
           fi
+          signature=$(printf '%s' "$SPARKLE_PRIVATE_KEY" | .build/artifacts/sparkle/Sparkle/bin/sign_update dist/Taskmaster.zip --ed-key-file -)
+          python3 scripts/appcast.py --version "$VERSION" --build "$BUILD" \
+            --url "https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/Taskmaster.zip" \
+            --signature "$signature" --notes notes.md > dist/appcast.xml
 
-          gh release create "v$VERSION" dist/* --target "$SHA" --title "Taskmaster $VERSION" --notes-file notes.md --latest
+          gh release create "v$VERSION" dist/* --target "$SHA" --title "Taskmaster $VERSION" --notes-file notes.md \
+            --latest=${{ steps.v.outputs.latest }}
