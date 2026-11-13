@@ -44,18 +44,19 @@ final class PetAnimation {
     }
 
     /// The drawing that is fading in over `sprite` during a stride uses its own eye landmarks.
+    /// `footShift` slides the painted legs (as a fraction of the drawing's width) against the body's travel.
     func update(
         sprite: SKSpriteNode, frame: PetAtlas.Frame, engine: PetEngine, reducedMotion: Bool, blending: Bool = false,
-        opacity: Double = 1
+        opacity: Double = 1, footShift: Double = 0
     ) {
         let shader = blending ? blendEyes : eyes
         shader.update(
             gaze: attention.gaze, blink: attention.blink, frame: frame, avatar: engine.avatar, opacity: opacity)
         sprite.shader = shader.shader
-        sprite.warpGeometry = reducedMotion ? nil : warp(for: frame, engine: engine)
+        sprite.warpGeometry = reducedMotion ? nil : warp(for: frame, engine: engine, footShift: Float(footShift))
     }
 
-    private func warp(for frame: PetAtlas.Frame, engine: PetEngine) -> SKWarpGeometryGrid {
+    private func warp(for frame: PetAtlas.Frame, engine: PetEngine, footShift: Float) -> SKWarpGeometryGrid {
         let head =
             frame.eyes.isEmpty
             ? SIMD2<Float>(0.64, 0.67)
@@ -101,7 +102,7 @@ final class PetAnimation {
                     + Float(tailWave + attention.tailFlick * 0.03) * tailWeight
                     + Float(attention.earFlick * 0.022) * earWeight
                     + Float(stretch * 0.025) * headWeight
-                    + Float(sin(t * 4) * 0.012) * pawWeight
+                    + Float(sin(t * 4) * 0.012) * pawWeight + footShift * (1 - body)
                 let dy =
                     Float(attention.gaze.y * 0.018) * headWeight
                     + (x - head.x) * Float(attention.headTilt) * headWeight

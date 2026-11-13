@@ -88,7 +88,8 @@
                 Scenario(
                     name: "tickle", warmup: 0.3, seconds: 2, fps: 15,
                     setup: { $0.debugTransition(to: .sitting, at: 600) },
-                    script: [(0.1, { $0.scroll(distance: 80) })]),
+                    // Two wheel samples, as a real scroll delivers them (each sample counts up to 60 points).
+                    script: [(0.1, { $0.scroll(distance: 40) }), (0.12, { $0.scroll(distance: 40) })]),
                 Scenario(
                     name: "dizzy", warmup: 0.2, seconds: 4, fps: 12, headroom: 60,
                     setup: { engine in

@@ -102,3 +102,14 @@ import Testing
         }
     }
 }
+
+// Adopted from Codex QA (R2-005): idle tail flicks wait while the companion watches the pointer.
+@Test func aWatchingCompanionPostponesIdleTailFlicks() {
+    var attention = PetAttention(seed: 802)
+    var peak = 0.0
+    for _ in 0..<(60 * 40) {
+        attention.advance(seconds: 1.0 / 60, target: Point(x: 0.4, y: 0), asleep: false, reducedMotion: false)
+        peak = max(peak, abs(attention.tailFlick))
+    }
+    #expect(peak == 0)
+}

@@ -141,6 +141,7 @@ final class AppModel: ObservableObject {
         desktop.engine.cancelDelivery()
         desktop.engine.perform(.wake)
         desktop.engine.removeToy()
+        desktop.engine.clearReactions()
         atlas = art
         if preferences.name == preferences.avatar.title { preferences.name = avatar.title }
         preferences.avatar = avatar

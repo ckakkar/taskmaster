@@ -73,10 +73,15 @@ extension PetScene {
             CGPoint(x: (Double(eyes.x) - 0.5) * pet.size.width, y: (Double(eyes.y) + 0.12) * pet.size.height), to: self)
     }
 
-    func particles(kind: String, color: NSColor, count: Int, from origin: CGPoint? = nil) {
-        guard !reducedMotion else { return }
+    /// Every transient effect (sparks, hearts, dust, Zs) shares one bound, oldest removed first.
+    func makeRoomForMotes(_ count: Int) {
         let existing = children.filter { $0.name == "mote" }
         for node in existing.prefix(max(0, existing.count + count - 96)) { node.removeFromParent() }
+    }
+
+    func particles(kind: String, color: NSColor, count: Int, from origin: CGPoint? = nil) {
+        guard !reducedMotion else { return }
+        makeRoomForMotes(count)
         for index in 0..<count {
             let node: SKShapeNode
             if kind == "heart" {
@@ -116,6 +121,7 @@ extension PetScene {
         guard !reducedMotion else { return }
         let floor = CGPoint(x: petLocation.x, y: shadow.position.y + 2)
         let count = 4 + Int(strength * 4)
+        makeRoomForMotes(count)
         for index in 0..<count {
             let side: Double = index % 2 == 0 ? -1 : 1
             let puff = SKShapeNode(circleOfRadius: 5 + Double(index % 3) * 2)
@@ -139,6 +145,7 @@ extension PetScene {
 
     /// One Z drifts up from a sleeping head, growing and fading as it goes.
     func sleepyZ(from point: CGPoint) {
+        makeRoomForMotes(1)
         let z = SKLabelNode(text: "z")
         z.name = "mote"
         z.fontName = NSFont.systemFont(ofSize: 15, weight: .bold).fontName

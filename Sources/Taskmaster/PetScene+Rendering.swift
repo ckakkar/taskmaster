@@ -14,11 +14,11 @@ extension PetScene {
         // Walking steps through the painted stride keys, timed by distance travelled (one frame behind the
         // motion model, which is advanced below once the pose is known).
         var nextPose = atlas.pose(for: engine, reducedMotion: reducedMotion)
-        var stride: (key: Int, next: Int, mix: Double)?
+        var stride: (key: Int, next: Int, mix: Double, within: Double)?
         // Pausing mid-walk holds the current stride drawing rather than snapping back to standing.
         if engine.state == .walking, engine.isPaused || reducedMotion || animation.motion.movement.value > 0.3 {
             let shown = WalkCycle.paintedKey(phase: animation.motion.stride)
-            stride = (shown.key, shown.next, reducedMotion ? 0 : shown.mix)
+            stride = (shown.key, shown.next, reducedMotion ? 0 : shown.mix, shown.within)
             nextPose = atlas.strideKeys[shown.key]
         }
         let frame = atlas.frame(for: nextPose)
@@ -82,8 +82,8 @@ extension PetScene {
         if engine.aerialRoute != nil, !reducedMotion {
             pet.zRotation = (engine.velocity.y * (facingRight ? 1 : -1) * 0.0007).clamped(to: -0.16...0.16)
         }
-        if !reducedMotion {
-            // A tickle is a quick wriggle that fades out; dizziness a slow, woozy sway.
+        if !reducedMotion, !engine.isPaused {
+            // A tickle is a quick wriggle that fades out; dizziness a slow, woozy sway. Pause holds both still.
             let tickle = max(0, engine.tickledUntil - engine.elapsed) / 1.6
             pet.zRotation += sin(time * 31) * 0.045 * tickle
             if engine.isDizzy, engine.state != .carried {
@@ -106,8 +106,30 @@ extension PetScene {
         // second, so neither drawing's own paws linger as a ghost and the overlap never turns see-through.
         let dissolving = stride.map { $0.mix > 0.001 && atlas.strideKeys[$0.next] != nextPose } ?? false
         let outgoing = dissolving ? min(1, 2 - 2 * (stride?.mix ?? 0)) : 1
-        animation.update(sprite: pet, frame: frame, engine: engine, reducedMotion: reducedMotion, opacity: outgoing)
         var wardrobeFrame = frame
+        // Painted paws on the floor hold their place while a drawing is shown (the legs shear back as the body
+        // travels), so feet don't skate between drawings. The room's preview walks on the spot, so it skips this.
+        let travel = isPreview || stride == nil ? 0 : strideLength / 4 * movement / max(1, pet.size.width)
+        var feet = 0.0
+        var incomingFeet = 0.0
+        if let stride {
+            let keys = atlas.strideKeys
+            var start = stride.key
+            while start > 0, keys[start - 1] == keys[stride.key] { start -= 1 }
+            var length = 1
+            while start + length < keys.count, keys[start + length] == keys[stride.key] { length += 1 }
+            let progress = (Double(stride.key - start) + stride.within) / Double(length)
+            feet = WalkCycle.footHold(within: progress) * travel * Double(length)
+            // The incoming drawing starts a run of its own, its paws placed where they will land.
+            var nextLength = 1
+            while stride.next + nextLength < keys.count, keys[stride.next + nextLength] == keys[stride.next] {
+                nextLength += 1
+            }
+            incomingFeet =
+                WalkCycle.footHold(within: (stride.within - 1) / Double(nextLength)) * travel * Double(nextLength)
+        }
+        animation.update(
+            sprite: pet, frame: frame, engine: engine, reducedMotion: reducedMotion, opacity: outgoing, footShift: feet)
         if let stride, dissolving {
             let nextPose = atlas.strideKeys[stride.next]
             let next = atlas.frame(for: nextPose)
@@ -122,7 +144,8 @@ extension PetScene {
             strideBlend.isHidden = false
             blendPose = nextPose
             animation.update(
-                sprite: strideBlend, frame: next, engine: engine, reducedMotion: reducedMotion, blending: true)
+                sprite: strideBlend, frame: next, engine: engine, reducedMotion: reducedMotion, blending: true,
+                footShift: incomingFeet * pet.size.width / max(1, strideBlend.size.width))
             wardrobeFrame = PetScene.neckBlend(from: frame, to: next, offset: offset / scale, mix: stride.mix)
         } else {
             strideBlend.isHidden = true

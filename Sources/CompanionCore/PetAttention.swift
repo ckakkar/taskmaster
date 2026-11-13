@@ -96,7 +96,10 @@ public struct PetAttention: Sendable {
         }
         let earAge = time - earStarted
         earFlick = reducedMotion || asleep || earAge > 0.48 ? 0 : sin(earAge * 30) * exp(-earAge * 7)
-        if time >= nextTailFlick {
+        if target != nil {
+            // An idle flick is for unoccupied moments; a watched pointer postpones it.
+            nextTailFlick = max(nextTailFlick, time + 3)
+        } else if time >= nextTailFlick {
             tailStarted = time
             nextTailFlick = time + random.value(in: 6...14)
         }

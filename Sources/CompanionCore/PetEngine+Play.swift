@@ -18,9 +18,22 @@ extension PetEngine {
         perform(.tickle)
     }
 
+    /// A new companion starts fresh, with no dizziness, giggles or half-finished boop combo inherited.
+    public mutating func clearReactions() {
+        dizzyUntil = -1
+        tickledUntil = -1
+        boopCount = 0
+        shakeTurns.removeAll()
+        shakeSign = 0
+    }
+
     mutating func reactToBoop() {
-        boopCount = elapsed - lastBoop < 2.5 ? boopCount + 1 : 1
-        lastBoop = elapsed
+        // Three boops count as a combo only when all of them land within 2.5 seconds.
+        if elapsed - boopComboStart > 2.5 {
+            boopCount = 0
+        }
+        if boopCount == 0 { boopComboStart = elapsed }
+        boopCount += 1
         events.append(.booped(position))
         if state == .sleeping {
             transition(to: .sitting, for: 4)

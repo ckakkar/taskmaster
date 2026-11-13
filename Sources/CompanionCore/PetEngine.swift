@@ -131,7 +131,7 @@ public struct PetEngine: Sendable {
     var shakeTurns: [Double] = []
     var shakeSign = 0
     var boopCount = 0
-    var lastBoop: Double = -10
+    var boopComboStart: Double = -10
     var scrollDistance: Double = 0
     var lastTickle: Double = -10
     var hoverStill: Double = 0

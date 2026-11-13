@@ -103,3 +103,77 @@ private func count(_ events: [PetEvent], _ match: (PetEvent) -> Bool) -> Int { e
     #expect(!CompanionSchedule.endsFocus(.boop))
     #expect(!CompanionSchedule.endsFocus(.tickle))
 }
+
+private func advance(_ engine: inout PetEngine, _ seconds: Double) {
+    for _ in 0..<Int((seconds * 60).rounded()) { engine.tick(seconds: 1.0 / 60) }
+}
+
+// Adopted from Codex QA (R2-004): the combo window is measured from the first boop, not between boops.
+@Test func slowBoopsTwoSecondsApartAreNotACombo() {
+    var engine = PetEngine(habitat: room, seed: 801)
+    engine.wanders = false
+    engine.napsOnItsOwn = false
+    engine.quietWhenIdle = false
+    engine.perform(.boop)
+    advance(&engine, 2)
+    engine.perform(.boop)
+    advance(&engine, 2)
+    engine.perform(.boop)
+    #expect(engine.state != .happy)
+}
+
+// Adopted from Codex QA: reaction timers hold still while paused and expire after resuming.
+@Test func tickleAndDizzinessFreezeWhilePausedAndExpireAfterResume() {
+    var engine = PetEngine(habitat: room, seed: 804)
+    engine.scroll(distance: 30)
+    engine.scroll(distance: 45)
+    #expect(engine.isTickled)
+    let remaining = engine.tickledUntil - engine.elapsed
+    engine.isPaused = true
+    advance(&engine, 10)
+    #expect(engine.isTickled && abs(engine.tickledUntil - engine.elapsed - remaining) < 0.0001)
+    engine.isPaused = false
+    advance(&engine, 2)
+    #expect(!engine.isTickled)
+    let start = engine.position
+    engine.beginDrag(at: start)
+    for step in 0..<6 {
+        engine.drag(to: Point(x: start.x + (step % 2 == 0 ? -30 : 30), y: 250), seconds: 0.05)
+        engine.tick(seconds: 0.05)
+    }
+    #expect(engine.isDizzy)
+    engine.isPaused = true
+    advance(&engine, 10)
+    #expect(engine.isDizzy)
+    engine.isPaused = false
+    engine.endDrag()
+    advance(&engine, 8)
+    #expect(!engine.isDizzy)
+}
+
+// Adopted from Codex QA (R2-002): a newly chosen companion doesn't inherit dizziness or a tickle.
+@Test func clearingReactionsEndsDizzinessTicklesAndCombos() {
+    var engine = PetEngine(habitat: room, seed: 808)
+    engine.scroll(distance: 40)
+    engine.scroll(distance: 40)
+    engine.perform(.boop)
+    engine.beginDrag(at: engine.position)
+    for step in 0..<6 {
+        engine.drag(to: Point(x: 600 + (step % 2 == 0 ? -30 : 30), y: 250), seconds: 0.05)
+        engine.tick(seconds: 0.05)
+    }
+    #expect(engine.isDizzy && engine.isTickled)
+    engine.clearReactions()
+    #expect(!engine.isDizzy && !engine.isTickled)
+}
+
+@Test func paintedPawsHoldTheirPlaceAcrossAHeldDrawing() {
+    // While the body travels one key's distance, the legs travel back the same distance: net zero.
+    #expect(WalkCycle.footHold(within: 0) == 0.5)
+    #expect(WalkCycle.footHold(within: 1) == -0.5)
+    for within in stride(from: 0.0, through: 1, by: 0.1) {
+        #expect(abs(within + WalkCycle.footHold(within: within) - 0.5) < 1e-12)
+    }
+    let shown = WalkCycle.paintedKey(phase: .pi / 4)
+    #expect(shown.key == 0 && abs(shown.within - 0.5) < 1e-9)
+}
