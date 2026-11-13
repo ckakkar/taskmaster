@@ -12,10 +12,13 @@ final class EyeShader {
     private let sizeB = SKUniform(name: "u_sizeB", vectorFloat2: .zero)
     private let pixels = SKUniform(name: "u_pixels", vectorFloat2: SIMD2(1, 1))
     private let lash = SKUniform(name: "u_lash", vectorFloat3: .zero)
+    /// Fades only this sprite's own pixels (not its children, such as an accessory) during a stride dissolve.
+    private let fade = SKUniform(name: "u_fade", float: 1)
     private(set) lazy var shader = SKShader(
-        source: Self.source, uniforms: [gaze, blink, eyeA, eyeB, sizeA, sizeB, pixels, lash])
+        source: Self.source, uniforms: [gaze, blink, eyeA, eyeB, sizeA, sizeB, pixels, lash, fade])
 
-    func update(gaze: Point, blink: Double, frame: PetAtlas.Frame, avatar: AvatarKind) {
+    func update(gaze: Point, blink: Double, frame: PetAtlas.Frame, avatar: AvatarKind, opacity: Double = 1) {
+        fade.floatValue = Float(opacity.clamped(to: 0...1))
         self.gaze.vectorFloat2Value = SIMD2(Float(gaze.x), Float(gaze.y))
         self.blink.floatValue = Float(blink)
         pixels.vectorFloat2Value = SIMD2(Float(frame.width), Float(frame.height))
@@ -80,7 +83,7 @@ final class EyeShader {
                 }
                 result = mix(result, eye, mask);
             }
-            gl_FragColor = result * v_color_mix.a;
+            gl_FragColor = result * v_color_mix.a * u_fade;
         }
         """
 }

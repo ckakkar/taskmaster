@@ -45,10 +45,12 @@ final class PetAnimation {
 
     /// The drawing that is fading in over `sprite` during a stride uses its own eye landmarks.
     func update(
-        sprite: SKSpriteNode, frame: PetAtlas.Frame, engine: PetEngine, reducedMotion: Bool, blending: Bool = false
+        sprite: SKSpriteNode, frame: PetAtlas.Frame, engine: PetEngine, reducedMotion: Bool, blending: Bool = false,
+        opacity: Double = 1
     ) {
         let shader = blending ? blendEyes : eyes
-        shader.update(gaze: attention.gaze, blink: attention.blink, frame: frame, avatar: engine.avatar)
+        shader.update(
+            gaze: attention.gaze, blink: attention.blink, frame: frame, avatar: engine.avatar, opacity: opacity)
         sprite.shader = shader.shader
         sprite.warpGeometry = reducedMotion ? nil : warp(for: frame, engine: engine)
     }

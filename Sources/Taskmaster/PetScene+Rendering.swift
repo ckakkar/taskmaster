@@ -102,9 +102,13 @@ extension PetScene {
             flightSparkAt = time + 0.3
             particles(kind: "spark", color: NSColor(calibratedRed: 0.49, green: 0.72, blue: 1, alpha: 0.7), count: 1)
         }
-        animation.update(sprite: pet, frame: frame, engine: engine, reducedMotion: reducedMotion)
+        // A stride dissolve fades the next drawing in over the first half and the current one out over the
+        // second, so neither drawing's own paws linger as a ghost and the overlap never turns see-through.
+        let dissolving = stride.map { $0.mix > 0.001 && atlas.strideKeys[$0.next] != nextPose } ?? false
+        let outgoing = dissolving ? min(1, 2 - 2 * (stride?.mix ?? 0)) : 1
+        animation.update(sprite: pet, frame: frame, engine: engine, reducedMotion: reducedMotion, opacity: outgoing)
         var wardrobeFrame = frame
-        if let stride, stride.mix > 0.001, atlas.strideKeys[stride.next] != nextPose {
+        if let stride, dissolving {
             let nextPose = atlas.strideKeys[stride.next]
             let next = atlas.frame(for: nextPose)
             if strideBlend.texture == nil || strideBlend.name != "\(nextPose.rawValue)-\(coat.rawValue)" {
@@ -114,7 +118,7 @@ extension PetScene {
             strideBlend.size = CGSize(width: Double(next.width) * scale, height: Double(next.height) * scale)
             let offset = atlas.strideShift(nextPose, scale: scale) - strideShift
             strideBlend.position = CGPoint(x: offset, y: 0)
-            strideBlend.alpha = stride.mix
+            strideBlend.alpha = min(1, stride.mix * 2)
             strideBlend.isHidden = false
             blendPose = nextPose
             animation.update(
