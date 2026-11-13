@@ -35,6 +35,7 @@ enum TaskmasterApplication {
                         else { throw PetAtlas.ArtError.invalidFrame }
                         print("\(pose): \(frame.width)×\(frame.height), \(frame.eyes.count) animated eyes")
                     }
+                    print("walk cycle: \(atlas.strideKeys.count) drawings")
                 }
                 print(
                     "Taskmaster self-check passed: all \(PetPose.allCases.count * AvatarKind.available.count) transparent character frames loaded."

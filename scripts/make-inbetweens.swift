@@ -18,12 +18,19 @@ struct Eye: Codable {
     var radius: Double
     var aspect: Double?
 }
+struct Neck: Codable {
+    var x: Double
+    var y: Double
+    var width: Double
+    var angle: Double
+}
 struct Region: Codable {
     var x: Double
     var y: Double
     var width: Double
     var height: Double
     var eyes: [Eye]?
+    var neck: Neck?
 }
 struct Layout: Codable {
     var sourceWidth: Double
@@ -110,10 +117,32 @@ func silhouette(_ bytes: [UInt8], _ w: Int, _ h: Int) -> CGRect {
     return best
 }
 
+/// A drawing with its landmarks in pixels (top-left origin) of whatever image it currently sits in.
+struct Drawn {
+    var eyes: [Eye]
+    var neck: Neck?
+    func moved(_ dx: Double, _ dy: Double) -> Drawn {
+        Drawn(
+            eyes: eyes.map { Eye(x: $0.x + dx, y: $0.y + dy, radius: $0.radius, aspect: $0.aspect) },
+            neck: neck.map { Neck(x: $0.x + dx, y: $0.y + dy, width: $0.width, angle: $0.angle) })
+    }
+    func mixed(_ other: Drawn, _ t: Double) -> Drawn {
+        func mix(_ a: Double, _ b: Double) -> Double { a + (b - a) * t }
+        return Drawn(
+            eyes: zip(eyes, other.eyes).map {
+                Eye(x: mix($0.x, $1.x), y: mix($0.y, $1.y), radius: mix($0.radius, $1.radius), aspect: $0.aspect)
+            },
+            neck: neck.flatMap { a in
+                other.neck.map { b in
+                    Neck(x: mix(a.x, b.x), y: mix(a.y, b.y), width: mix(a.width, b.width), angle: mix(a.angle, b.angle))
+                }
+            })
+    }
+}
 struct Key {
     var image: CGImage
-    var eyes: [Eye]
-}  // eyes in the trimmed image's pixels
+    var marks: Drawn
+}
 var cut: [Key] = []
 for index in keys {
     let r = layout.frames[index]
@@ -121,23 +150,21 @@ for index in keys {
     let cell = sheet.cropping(to: rect)!
     let bounds = silhouette(rgba(cell), cell.width, cell.height)
     let trimmed = cell.cropping(to: bounds)!
-    let eyes = (r.eyes ?? []).map {
-        Eye(
-            x: $0.x * sx - rect.minX - bounds.minX, y: $0.y * sx - rect.minY - bounds.minY, radius: $0.radius * sx,
-            aspect: $0.aspect)
-    }
-    cut.append(Key(image: trimmed, eyes: eyes))
+    let scaled = Drawn(
+        eyes: (r.eyes ?? []).map { Eye(x: $0.x * sx, y: $0.y * sx, radius: $0.radius * sx, aspect: $0.aspect) },
+        neck: r.neck.map { Neck(x: $0.x * sx, y: $0.y * sx, width: $0.width * sx, angle: $0.angle) })
+    cut.append(Key(image: trimmed, marks: scaled.moved(-rect.minX - bounds.minX, -rect.minY - bounds.minY)))
 }
 
 // A shared canvas: eyes centred at the same x, ground line (bottom of the drawing) at the same y.
-let eyeX = cut.map { k in k.eyes.map(\.x).reduce(0, +) / Double(k.eyes.count) }
+let eyeX = cut.map { k in k.marks.eyes.map(\.x).reduce(0, +) / Double(k.marks.eyes.count) }
 let leftReach = zip(cut, eyeX).map { $1 }.max()!
 let rightReach = zip(cut, eyeX).map { Double($0.image.width) - $1 }.max()!
 let tallest = cut.map(\.image.height).max()!
 let canvasW = Int(leftReach + rightReach) + 24
 let canvasH = tallest + 24
 let anchorX = leftReach + 12
-func placed(_ k: Key, _ ex: Double) -> (Bitmap, [Eye]) {
+func placed(_ k: Key, _ ex: Double) -> (Bitmap, Drawn) {
     let dx = anchorX - ex
     let dy = Double(canvasH - 12 - k.image.height)  // top-left origin
     var bytes = [UInt8](repeating: 0, count: canvasW * canvasH * 4)
@@ -148,7 +175,7 @@ func placed(_ k: Key, _ ex: Double) -> (Bitmap, [Eye]) {
     context.draw(k.image, in: CGRect(x: dx, y: 12, width: Double(k.image.width), height: Double(k.image.height)))
     return (
         Bitmap(width: canvasW, height: canvasH, data: bytes.map { Float($0) / 255 }),
-        k.eyes.map { Eye(x: $0.x + dx, y: $0.y + dy, radius: $0.radius, aspect: $0.aspect) }
+        k.marks.moved(dx, dy)
     )
 }
 let placedKeys = zip(cut, eyeX).map { placed($0, $1) }
@@ -218,7 +245,7 @@ func between(_ a: Bitmap, _ b: Bitmap, _ ab: [SIMD2<Float>], _ ba: [SIMD2<Float>
     return out
 }
 
-var frames: [(Bitmap, [Eye])] = []
+var frames: [(Bitmap, Drawn)] = []
 for index in placedKeys.indices {
     let (a, eyesA) = placedKeys[index]
     let (b, eyesB) = placedKeys[(index + 1) % placedKeys.count]
@@ -228,12 +255,7 @@ for index in placedKeys.indices {
     for step in 1...max(1, steps) {
         let t = Float(step) / Float(steps + 1)
         let mid = between(a, b, ab, ba, t: t)
-        let eyes = zip(eyesA, eyesB).map {
-            Eye(
-                x: $0.x + ($1.x - $0.x) * Double(t), y: $0.y + ($1.y - $0.y) * Double(t),
-                radius: $0.radius + ($1.radius - $0.radius) * Double(t), aspect: $0.aspect)
-        }
-        frames.append((mid, eyes))
+        frames.append((mid, eyesA.mixed(eyesB, Double(t))))
     }
 }
 
@@ -252,11 +274,11 @@ for (n, frame) in frames.enumerated() {
             for c in 0..<4 { sheetBytes[d + c] = frame.0.data[s + c] }
         }
     }
+    let marks = frame.1.moved(Double(ox), Double(oy))
     regions.append(
         Region(
-            x: Double(ox), y: Double(oy), width: Double(canvasW), height: Double(canvasH),
-            eyes: frame.1.map { Eye(x: $0.x + Double(ox), y: $0.y + Double(oy), radius: $0.radius, aspect: $0.aspect) })
-    )
+            x: Double(ox), y: Double(oy), width: Double(canvasW), height: Double(canvasH), eyes: marks.eyes,
+            neck: marks.neck))
 }
 let whole = Bitmap(width: canvasW * columns, height: canvasH * rows, data: sheetBytes)
 let dest = CGImageDestinationCreateWithURL(outImage as CFURL, "public.png" as CFString, 1, nil)!

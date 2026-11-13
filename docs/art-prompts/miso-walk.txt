@@ -1,0 +1,13 @@
+Use case: stylized-concept. Create a clean production EIGHT-FRAME WALK CYCLE of the exact original Miso red panda in the reference image. The reference is the shipped character's walking sprite on a plain light background for visibility; it is an identity, proportion, camera and material reference ONLY. Match her silhouette proportions EXACTLY: upright tall rounded head and ears, compact raised shoulder and chest, short torso, short dark brown legs, large striped tail trailing left. Overall full-body height is approximately 74% of width including tail. Do not make her head shorter, torso longer, or body flatter. Preserve her exact face shape, cream cheeks/eyebrows, brown eyes, tiny nose, rich orange plush fur and soft original 2.5D animated-film style and warm top-left light.
+Output a 4-column by 2-row sheet of EIGHT equally sized cells, row-major, with each complete character isolated in generous transparent margins. Same side-three-quarter PROFILE view facing RIGHT in every cell; never face front. Prefer 2048×1024 landscape. All faces, heads, eyes and ears remain virtually identical in size, shape and expression across the sequence; tiny natural vertical bob only. Fixed ground line at 85% height in every cell.
+Eight distinct small successive phases of ONE classical quadruped walk:
+1 CONTACT: near forepaw reaches forward onto ground; far hindpaw trails back;
+2 DOWN: near forepaw takes weight and slides slightly back; far forepaw lifts;
+3 PASSING: near forepaw under shoulder; far forepaw swings through; near hindpaw begins lifting;
+4 UP: near forepaw pulls behind shoulder; far forepaw now extends forward, body very slightly higher;
+5 OPPOSITE CONTACT: far forepaw meets ground forward; near hindpaw trails back;
+6 OPPOSITE DOWN: far forepaw takes weight; near forepaw lifts;
+7 OPPOSITE PASSING: far forepaw under shoulder, near forepaw swings through;
+8 OPPOSITE UP: far forepaw pulls behind shoulder; near forepaw extends forward to meet frame 1.
+Four legs total, correct anatomy, calm grounded walk rather than running, smooth cycle, no sudden foot teleport. At least two paws planted each frame. Tail keeps identical size and stripes, only a tiny smooth sway. Same camera, light and fur colours. Heads within 3% scale, eye locations within 3% horizontally/2% vertically between cells.
+Every pixel outside each actual fur silhouette must have genuine zero alpha: NO BACKGROUND of any colour or opacity, no haze, no loose coloured noise, no ground, no floor, no shadows, no checkerboard. No grid lines, labels, numbers, text, clothes, accessories, objects, people, watermarks or extra characters. Nothing cropped or touching another cell. Render all eight drawings in the SAME highly detailed plush style as the reference.

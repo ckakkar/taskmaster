@@ -55,6 +55,17 @@ swift scripts/make-inbetweens.swift Sources/Taskmaster/Resources/ToothlessAtlas.
   Sources/Taskmaster/Resources/ToothlessWalk.json 1,0,2,0 2
 ```
 
+`MisoWalk.png` (2304 × 1024, eight drawings) was painted on 13 November 2026
+with the built-in imagegen tool by Codex, using Miso's shipped walking drawing
+as the identity reference: one eight-phase generation (drawings 1–7) and one
+targeted edit of drawing 8 so its swinging paw stays off the ground before
+contact. The exact prompts are in `docs/art-prompts/miso-walk.txt` and
+`miso-walk-drawing-8.txt`. The sheet was laid out with the loader's silhouette
+rules, scaled 1.055× vertically to match the shipped profile, and checked: head
+size within 1.2%, eyes within 0.5%, an identical ground line, and size within 4%
+of the original walk drawings. Eye and neck landmarks were measured from the
+painted irises and throat. Coat colours and accessories work on every drawing.
+
 ## Current limitations
 
 These are painted poses with procedural animation, not a full skeletal 3D model

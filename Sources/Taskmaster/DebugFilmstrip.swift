@@ -163,6 +163,10 @@
             preferences.name = avatar.title
             preferences.size = size
             preferences.hasOnboarded = true
+            if let coat = value(after: "--coat").flatMap(CoatStyle.init(rawValue:)) { preferences.coat = coat }
+            if let style = value(after: "--accessory").flatMap(AccessoryStyle.init(rawValue:)) {
+                preferences.accessory = style
+            }
             let sceneSize = CGSize(width: 1_200, height: 520)
             let scene = PetScene(size: sceneSize, atlas: atlas)
             // `.resizeFill` collapses a scene that has no view to zero size.
