@@ -451,6 +451,8 @@ final class PetInteractionView: SKView {
 
     override func mouseUp(with event: NSEvent) {
         guard let driver else { return }
+        // Resting before letting go drops the ball where it is rather than throwing it at the last drag's speed.
+        if event.timestamp - lastTime > 0.12 { throwVelocity = .zero }
         if target == .pet {
             if wasDragged { driver.engine.endDrag() } else if event.clickCount < 2 { driver.model.perform(.pet) }
         } else if target == .ball {

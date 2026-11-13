@@ -100,8 +100,13 @@ public struct PetEngine: Sendable {
             if isFocusing {
                 cancelCursorHeist()
                 cancelPeek()
-            } else if oldValue {
-                transition(to: .sitting, for: 4)
+            } else if oldValue, state != .carried, state != .falling {
+                // Ending focus never strands the companion where it was: above the floor it drops first.
+                if position.y > habitat.floor + 0.5 {
+                    transition(to: .falling, for: .infinity)
+                } else {
+                    transition(to: .sitting, for: 4)
+                }
             }
         }
     }
@@ -115,6 +120,7 @@ public struct PetEngine: Sendable {
     var decisionAt: Double = 7
     var releaseAt: Double = 0
     var dragOffset: Point = .zero
+    var lastDragAt: Double = 0
     var events: [PetEvent] = []
     var lastPrank: Double = -18
     var lastToyHit: Double = -2
@@ -466,6 +472,7 @@ public struct PetEngine: Sendable {
         snack = nil
         dragOffset = Point(x: position.x - pointer.x, y: position.y - pointer.y)
         velocity = .zero
+        lastDragAt = elapsed
         transition(to: .carried, for: .infinity)
     }
 
@@ -478,10 +485,13 @@ public struct PetEngine: Sendable {
             y: ((next.y - position.y) / dt).clamped(to: -500...500)
         )
         position = next
+        lastDragAt = elapsed
     }
 
     public mutating func endDrag() {
         guard state == .carried else { return }
+        // A pointer held still before letting go is a gentle drop, not a throw at the last drag's speed.
+        if elapsed - lastDragAt > 0.12 { velocity = .zero }
         transition(to: .falling, for: .infinity)
         velocity.y = min(velocity.y, 80)
     }

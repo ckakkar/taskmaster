@@ -22,7 +22,8 @@ extension PetEngine {
 
     mutating func updateToy(_ dt: Double) {
         guard var ball = toy else { return }
-        ball.age += dt
+        // A ball in the person's hand never expires, however long they hold it still.
+        if !ball.isHeld { ball.age += dt }
         if ball.age > 30 {
             toy = nil
             return
