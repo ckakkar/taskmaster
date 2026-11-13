@@ -18,6 +18,7 @@ final class DesktopController: NSObject {
     private var screen: NSScreen
     private var timer: Timer?
     private var lastTick = CACurrentMediaTime()
+    private var lastServices: Double = 0
     private var presentationTick = 0
     private var suspended = false
     private var lastWarp: CGPoint?
@@ -196,7 +197,12 @@ final class DesktopController: NSObject {
         let dt = min(0.1, now - lastTick)
         lastTick = now
         guard !suspended else { return }
-        if presentationTick % 12 == 0 || framesPerSecond <= FramePacing.hidden { model.updateServices() }
+        // Focus, reminders and deliveries run on the wall clock, five times a second whatever drives the frames
+        // (60 fps, 4 fps hidden, or the watchdog when frames stop).
+        if now - lastServices >= 0.2 {
+            lastServices = now
+            model.updateServices()
+        }
         let pointer = NSEvent.mouseLocation
         let localPoint = CGPoint(x: pointer.x - screen.frame.minX, y: pointer.y - screen.frame.minY)
         if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion { engine.cancelCursorHeist() }

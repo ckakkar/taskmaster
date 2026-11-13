@@ -238,7 +238,11 @@ func between(_ a: Bitmap, _ b: Bitmap, _ ab: [SIMD2<Float>], _ ba: [SIMD2<Float>
             let toB = f01 * ((1 - t) * (1 - t)) - f10 * (t * (1 - t))
             let pa = a.sample(Float(x) + toA.x, Float(y) + toA.y)
             let pb = b.sample(Float(x) + toB.x, Float(y) + toB.y)
-            let mixed = pa * (1 - t) + pb * t
+            // Where one neighbour has fur and the other doesn't (a paw lifting away, say), blending would
+            // leave a translucent ghost; take the nearer drawing there instead.
+            let gap = min(1, max(0, (abs(pa.w - pb.w) - 0.12) / 0.3))
+            let occlusion = gap * gap * (3 - 2 * gap)
+            let mixed = (pa * (1 - t) + pb * t) * (1 - occlusion) + (t < 0.5 ? pa : pb) * occlusion
             for c in 0..<4 { out.data[i * 4 + c] = mixed[c] }
         }
     }

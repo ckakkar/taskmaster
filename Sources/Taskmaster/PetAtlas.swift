@@ -130,8 +130,11 @@ final class PetAtlas {
                 let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
             {
                 let bounds = Self.opaqueBounds(Self.rgba(image), width: image.width, height: image.height)
-                guard let trimmed = image.cropping(to: bounds) else { throw ArtError.invalidFrame }
-                let data = Self.rgba(trimmed)
+                guard let cropped = image.cropping(to: bounds) else { throw ArtError.invalidFrame }
+                let data = Self.rgba(cropped)
+                guard let trimmed = Self.image(data, width: cropped.width, height: cropped.height) else {
+                    throw ArtError.invalidFrame
+                }
                 let texture = SKTexture(cgImage: trimmed)
                 texture.filteringMode = .linear
                 guard let metadata = layout.highFive else { throw ArtError.invalidFrame }
@@ -258,8 +261,12 @@ final class PetAtlas {
         }
         let pixels = Self.rgba(cell)
         let bounds = Self.opaqueBounds(pixels, width: cell.width, height: cell.height)
-        guard let trimmed = cell.cropping(to: bounds) else { throw ArtError.invalidFrame }
-        let trimmedPixels = Self.rgba(trimmed)
+        guard let cropped = cell.cropping(to: bounds) else { throw ArtError.invalidFrame }
+        let trimmedPixels = Self.rgba(cropped)
+        // A crop shares the whole decoded sheet's memory; an owned copy lets the sheet go once loading ends.
+        guard let trimmed = Self.image(trimmedPixels, width: cropped.width, height: cropped.height) else {
+            throw ArtError.invalidFrame
+        }
         let alpha = stride(from: 3, to: trimmedPixels.count, by: 4).map { trimmedPixels[$0] }
         let texture = SKTexture(cgImage: trimmed)
         texture.filteringMode = .linear
@@ -311,6 +318,15 @@ final class PetAtlas {
             cycle[pose] = frame
         }
         return cycle
+    }
+
+    private static func image(_ pixels: [UInt8], width: Int, height: Int) -> CGImage? {
+        guard let provider = CGDataProvider(data: Data(pixels) as CFData) else { return nil }
+        return CGImage(
+            width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue), provider: provider,
+            decode: nil, shouldInterpolate: true, intent: .defaultIntent)
     }
 
     private static func rgba(_ image: CGImage) -> [UInt8] {
