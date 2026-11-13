@@ -129,7 +129,7 @@ struct WelcomeView: View {
         .frame(width: 480, height: 600)
         .foregroundStyle(Palette.ink)
         .background(Palette.paper)
-        .tint(Palette.orange)
+        .tint(Palette.tint)
         .onAppear {
             let reduced = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
             withAnimation(reduced ? .easeOut(duration: 0.2) : .spring(response: 0.6, dampingFraction: 0.7).delay(0.1)) {

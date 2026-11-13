@@ -66,6 +66,12 @@ final class DesktopController: NSObject {
         canvas.ignoresSiblingOrder = true
         canvas.shouldCullNonVisibleNodes = true
         canvas.presentScene(scene)
+        // The canvas's own display-synchronised frames drive the companion, so every frame on screen gets
+        // exactly one update (a free-running timer beats against the display and stutters).
+        scene.frameHandler = { [weak self] in
+            guard let self, !self.canvas.isPaused else { return }
+            self.tick()
+        }
         applyPreferences()
         #if DEBUG
             if let launch = DebugLaunch.current { engine.startDebugState(launch.state) }
@@ -122,6 +128,7 @@ final class DesktopController: NSObject {
         engine.isPaused = !visible || model.isPaused
         canvas.isPaused = !visible
         if visible { panel.orderFrontRegardless() } else { panel.orderOut(nil) }
+        startTimer()
     }
 
     func stop() {
@@ -178,7 +185,13 @@ final class DesktopController: NSObject {
         NSMenu.popUpContextMenu(menu, with: event, for: view)
     }
 
-    @objc private func tick() {
+    /// Hidden, the timer is the clock; while the canvas draws it only steps in if frames stop arriving (for
+    /// example when macOS throttles a covered window), so focus and deliveries keep time either way.
+    @objc private func timerFired() {
+        if canvas.isPaused || CACurrentMediaTime() - lastTick > 0.4 { tick() }
+    }
+
+    private func tick() {
         let now = CACurrentMediaTime()
         let dt = min(0.1, now - lastTick)
         lastTick = now
@@ -232,8 +245,11 @@ final class DesktopController: NSObject {
 
     private func startTimer() {
         timer?.invalidate()
-        let interval = 1.0 / Double(framesPerSecond)
-        let timer = Timer(timeInterval: interval, target: self, selector: #selector(tick), userInfo: nil, repeats: true)
+        timer = nil
+        guard !suspended else { return }
+        let interval = canvas.isPaused ? 1.0 / Double(framesPerSecond) : 0.5
+        let timer = Timer(
+            timeInterval: interval, target: self, selector: #selector(timerFired), userInfo: nil, repeats: true)
         timer.tolerance = interval * 0.1
         self.timer = timer
         RunLoop.main.add(timer, forMode: .common)
@@ -365,9 +381,9 @@ final class DesktopController: NSObject {
     }
     @objc private func didWake() {
         suspended = false
-        startTimer()
         lastTick = CACurrentMediaTime()
         canvas.isPaused = !model.isVisible
+        startTimer()
         displaysChanged()
     }
 

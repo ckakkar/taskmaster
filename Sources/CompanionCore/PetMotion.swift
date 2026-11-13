@@ -1,7 +1,9 @@
 import Foundation
 
 public enum WalkCycle {
-    public static let strideRatio: Double = 0.32
+    /// One full stride covers this fraction of the standing drawing's width. Small animals take quick, short
+    /// steps; a short stride also changes drawing often enough to read as motion rather than stop-motion.
+    public static let strideRatio: Double = 0.2
     public static let footPositions = [0.28, 0.53, 0.77]
     public static let phaseOffsets = [0.0, 0.5, 0.25]
 
@@ -29,7 +31,7 @@ public enum WalkCycle {
     /// Which painted key shows at a stride phase and how far the following key has dissolved in.
     /// Each key holds for most of its quarter and eases into the next over the last `blend` of it,
     /// so the drawing reads as steps rather than a constant double exposure.
-    public static func paintedKey(phase: Double, blend: Double = 0.2) -> (
+    public static func paintedKey(phase: Double, blend: Double = 0.35) -> (
         key: Int, next: Int, mix: Double, within: Double
     ) {
         guard phase.isFinite else { return (1, 2, 0, 0) }

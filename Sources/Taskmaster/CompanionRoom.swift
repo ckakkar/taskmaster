@@ -27,7 +27,7 @@ struct CompanionRoom: View {
         .frame(minWidth: 760)
         .background(Palette.paper)
         .foregroundStyle(Palette.ink)
-        .tint(Palette.orange)
+        .tint(Palette.tint)
     }
 }
 

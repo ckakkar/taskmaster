@@ -115,7 +115,9 @@ final class PetAnimation {
                 var wingY: Float = 0
                 if flap != 0 {
                     // Only the membrane above the back: fades out toward the shoulder and the spine.
-                    let mask = smooth(0.58, 0.68, y) * smooth(0.6, 0.48, x)
+                    // The ear sits just past the shoulder at the top of the drawing; keep it out of the beat.
+                    let ear = smooth(0.8, 0.88, y) * smooth(0.43, 0.49, x)
+                    let mask = smooth(0.58, 0.68, y) * smooth(0.6, 0.48, x) * (1 - ear)
                     let reach = SIMD2((x - root.x), (y - root.y) * aspect)
                     let bend = min(1, simd_length(reach) / 0.18)
                     let angle = flap * mask * bend

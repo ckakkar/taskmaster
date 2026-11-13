@@ -99,7 +99,7 @@ struct SettingsView: View {
             .frame(minWidth: 460, maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle(model.settingsPane.title)
         }
-        .tint(Palette.orange)
+        .tint(Palette.tint)
     }
 
     @ViewBuilder private var pane: some View {

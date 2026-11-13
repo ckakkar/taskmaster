@@ -153,6 +153,11 @@ final class PetScene: SKScene {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    /// Called once per frame the view draws, in step with the display.
+    var frameHandler: (() -> Void)?
+
+    override func update(_ currentTime: TimeInterval) { frameHandler?() }
+
     func changeAtlas(_ atlas: PetAtlas) {
         guard self.atlas !== atlas else { return }
         self.atlas = atlas

@@ -10,6 +10,9 @@ enum Palette {
     // About 5.4:1 against paper in both appearances, comfortably readable at small sizes.
     static let secondary = adaptive(light: (0.45, 0.39, 0.34), dark: (0.72, 0.67, 0.62))
     static let orange = adaptive(light: (0.76, 0.35, 0.21), dark: (0.95, 0.55, 0.38))
+    /// The control tint: filled buttons and selected segments carry white labels, so the fill stays deep in both
+    /// appearances (about 4.4:1 against white) even though accent text brightens in the dark.
+    static let tint = Color(red: 0.76, green: 0.35, blue: 0.21)
     static let line = adaptive(light: (0.86, 0.82, 0.77), dark: (0.32, 0.29, 0.26))
     static let green = adaptive(light: (0.34, 0.48, 0.39), dark: (0.55, 0.74, 0.60))
     /// Raised surfaces: buttons, cards and rows sitting on the paper.
