@@ -5,7 +5,7 @@
     import Metal
     import SpriteKit
 
-    /// `--debug-filmstrip <folder> [--avatar miso|toothless] [--scenario <name>] [--size 1.0] [--reduced-motion]`
+    /// `--debug-filmstrip <folder> [--avatar miso|toothless] [--scenario <name>] [--size 1.0] [--fps 30] [--reduced-motion]`
     ///
     /// Renders scripted scenes off screen with a simulated clock, so every frame is reproducible and no screen
     /// recording permission is needed. Each scenario writes numbered PNG frames, a contact sheet (frames cropped
@@ -116,6 +116,7 @@
                 default: AvatarKind.available
                 }
             let wanted = value(after: "--scenario")
+            let fps = value(after: "--fps").flatMap(Double.init)
             let size = value(after: "--size").flatMap(Double.init) ?? 1
             let reduced = CommandLine.arguments.contains("--reduced-motion")
             guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue() else {
@@ -136,6 +137,8 @@
                     for scenario in scenarios where wanted == nil || wanted == "all" || scenario.name == wanted {
                         if scenario.flying && avatar == .miso { continue }
                         let output = folder.appendingPathComponent("\(avatar.rawValue)-\(scenario.name)")
+                        var scenario = scenario
+                        if let fps { scenario.fps = fps }
                         try record(
                             scenario, avatar: avatar, atlas: atlas, size: size, reducedMotion: reduced,
                             device: device, queue: queue, into: output)

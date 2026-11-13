@@ -17,7 +17,7 @@ extension PetScene {
         var stride: (key: Int, next: Int, mix: Double, within: Double)?
         // Pausing mid-walk holds the current stride drawing rather than snapping back to standing.
         if engine.state == .walking, engine.isPaused || reducedMotion || animation.motion.movement.value > 0.3 {
-            let shown = WalkCycle.paintedKey(phase: animation.motion.stride)
+            let shown = WalkCycle.paintedKey(phase: animation.motion.stride, count: atlas.strideKeys.count)
             stride = (shown.key, shown.next, reducedMotion ? 0 : shown.mix, shown.within)
             nextPose = atlas.strideKeys[shown.key]
         }
@@ -116,7 +116,9 @@ extension PetScene {
         // Painted paws on the floor hold their place while a drawing is shown (the legs shear back as the body
         // travels), so feet don't skate between drawings. The room's preview walks on the spot, so it skips this.
         let petWidth = Double(pet.size.width)
-        let travel: Double = isPreview || stride == nil ? 0 : strideLength / 4 * movement / max(1, petWidth)
+        let travel: Double =
+            isPreview || stride == nil
+            ? 0 : strideLength / Double(atlas.strideKeys.count) * movement / max(1, petWidth)
         var feet = 0.0
         var incomingFeet = 0.0
         if let stride {
@@ -146,9 +148,12 @@ extension PetScene {
                 strideBlend.texture = atlas.texture(for: nextPose, coat: coat)
                 strideBlend.name = "\(nextPose.rawValue)-\(coat.rawValue)"
             }
-            strideBlend.size = CGSize(width: Double(next.width) * scale, height: Double(next.height) * scale)
+            strideBlend.size = CGSize(
+                width: Double(next.width) * scale * next.artworkScale,
+                height: Double(next.height) * scale * next.artworkScale)
             // The incoming drawing's own width, so its shear matches the same distance on screen.
-            incomingFootShift = reducedMotion ? 0 : incomingFeet * petWidth / max(1, Double(next.width) * scale)
+            incomingFootShift =
+                reducedMotion ? 0 : incomingFeet * petWidth / max(1, Double(next.width) * scale * next.artworkScale)
             let offset = atlas.strideShift(nextPose, scale: scale) - strideShift
             strideBlend.position = CGPoint(x: offset, y: 0)
             strideBlend.alpha = min(1, stride.mix * 2)
@@ -157,7 +162,8 @@ extension PetScene {
             animation.update(
                 sprite: strideBlend, frame: next, engine: engine, reducedMotion: reducedMotion, blending: true,
                 footShift: incomingFootShift)
-            wardrobeFrame = PetScene.neckBlend(from: frame, to: next, offset: offset / scale, mix: stride.mix)
+            wardrobeFrame = PetScene.neckBlend(
+                from: frame, to: next, offset: offset / (scale * frame.artworkScale), mix: stride.mix)
         } else {
             strideBlend.isHidden = true
         }

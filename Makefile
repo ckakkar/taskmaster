@@ -23,10 +23,10 @@ check: ## Behavior tests, native compilation and the character resource self-che
 	.build/debug/Taskmaster --self-check
 
 lint: ## swift-format, strict
-	xcrun swift-format lint --strict --recursive Sources Tests scripts/render-icon.swift scripts/dmg-background.swift Package.swift
+	xcrun swift-format lint --strict --recursive Sources Tests scripts/render-icon.swift scripts/dmg-background.swift scripts/make-inbetweens.swift Package.swift
 
 format: ## Format the code
-	xcrun swift-format format --in-place --recursive Sources Tests scripts/render-icon.swift scripts/dmg-background.swift Package.swift
+	xcrun swift-format format --in-place --recursive Sources Tests scripts/render-icon.swift scripts/dmg-background.swift scripts/make-inbetweens.swift Package.swift
 
 app: ## Build Taskmaster.app in build/
 	scripts/build-app.sh

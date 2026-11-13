@@ -4,6 +4,11 @@ import SpriteKit
 
 enum PetPose: Int, CaseIterable {
     case standing, walkA, walkB, sitting, sleeping, carried, delighted, playBow, mischievous, highFive
+    /// Drawings from a dedicated walk-cycle sheet (up to sixteen), in stride order, when the avatar has one.
+    case stride1, stride2, stride3, stride4, stride5, stride6, stride7, stride8
+    case stride9, stride10, stride11, stride12, stride13, stride14, stride15, stride16
+
+    static let walkCycle: [PetPose] = PetPose.allCases.filter { $0.rawValue >= PetPose.stride1.rawValue }
 }
 
 @MainActor
@@ -116,49 +121,7 @@ final class PetAtlas {
         else { throw ArtError.invalidFrame }
 
         for pose in PetPose.allCases where pose.rawValue < layout.frames.count {
-            let region = layout.frames[pose.rawValue]
-            let sx = Double(sheet.width) / layout.sourceWidth
-            let sy = Double(sheet.height) / layout.sourceHeight
-            let rectangle = CGRect(
-                x: region.x * sx, y: region.y * sy, width: region.width * sx, height: region.height * sy
-            ).integral
-            guard rectangle.minX >= 0, rectangle.minY >= 0,
-                rectangle.maxX <= Double(sheet.width), rectangle.maxY <= Double(sheet.height),
-                rectangle.width > 0, rectangle.height > 0,
-                let cell = sheet.cropping(to: rectangle)
-            else {
-                throw ArtError.invalidFrame
-            }
-            let width = cell.width
-            let height = cell.height
-            let pixels = Self.rgba(cell)
-            let bounds = Self.opaqueBounds(pixels, width: width, height: height)
-            guard let trimmed = cell.cropping(to: bounds) else { throw ArtError.invalidFrame }
-            let trimmedPixels = Self.rgba(trimmed)
-            let alpha = stride(from: 3, to: trimmedPixels.count, by: 4).map { trimmedPixels[$0] }
-            let texture = SKTexture(cgImage: trimmed)
-            texture.filteringMode = .linear
-            let originX = Double(rectangle.minX + bounds.minX)
-            let originY = Double(rectangle.minY + bounds.minY)
-            func landmark(_ x: Double, _ y: Double) -> SIMD2<Float> {
-                let px = (x * sx - originX) / Double(trimmed.width)
-                let py = 1 - (y * sy - originY) / Double(trimmed.height)
-                return SIMD2(Float(px), Float(py))
-            }
-            let eyes: [Frame.Eye] = (region.eyes ?? []).map {
-                Frame.Eye(
-                    center: landmark($0.x, $0.y), radius: Float($0.radius * sx),
-                    aspect: $0.aspect.map(Float.init) ?? Frame.Eye.defaultAspect)
-            }
-            let paw: SIMD2<Float>? = region.paw.map { landmark($0.x, $0.y) }
-            let neck: Frame.Neck? = region.neck.map {
-                Frame.Neck(
-                    center: landmark($0.x, $0.y),
-                    width: Float($0.width * sx / Double(trimmed.width)), angle: $0.angle)
-            }
-            frames[pose] = Frame(
-                image: trimmed, texture: texture, alpha: alpha,
-                width: trimmed.width, height: trimmed.height, eyes: eyes, paw: paw, neck: neck)
+            frames[pose] = try Self.cut(layout.frames[pose.rawValue], from: sheet, layout: layout)
         }
         if layout.frames.count == 9 {
             // The new gesture has its own transparent image and scale reference.
@@ -201,24 +164,35 @@ final class PetAtlas {
                 throw ArtError.missingAtlas
             }
         }
+        if let cycle = try Self.loadWalkCycle(avatar: avatar, from: resources, reference: frames[.walkA]) {
+            frames.merge(cycle) { _, new in new }
+            strideKeys = PetPose.walkCycle.filter { cycle[$0] != nil }
+        } else {
+            // Without a walk sheet the stride uses the atlas's own drawings.
+            strideKeys = avatar == .miso ? [.walkA, .walkA, .walkB, .walkB] : [.walkA, .standing, .walkB, .standing]
+        }
+        // Cycle poses the sheet doesn't fill borrow stride drawings, so every pose always has a frame.
+        for (index, pose) in PetPose.walkCycle.enumerated() where frames[pose] == nil {
+            frames[pose] = frames[strideKeys[index * strideKeys.count / PetPose.walkCycle.count]]
+        }
         standingHeight = Double(frames[.standing]?.height ?? 300)
         maximumFrameHeight = frames.values.map { Double($0.height) * $0.artworkScale }.max() ?? 400
     }
 
     func frame(for pose: PetPose) -> Frame { frames[pose]! }
 
-    /// The painted stride, in `WalkCycle.paintedKey` order: contact A, passing, contact B, passing.
-    /// Toothless's standing drawing is in profile and makes a natural passing pose; Miso's faces the viewer,
-    /// so she alternates her two profile strides instead.
-    var strideKeys: [PetPose] {
-        avatar == .miso ? [.walkA, .walkA, .walkB, .walkB] : [.walkA, .standing, .walkB, .standing]
-    }
+    /// The painted stride, in `WalkCycle.paintedKey` order. With a walk sheet that is its eight drawings;
+    /// otherwise contact A, passing, contact B, passing from the atlas (Toothless's standing drawing is in
+    /// profile and makes a natural passing pose; Miso's faces the viewer, so she alternates her two strides).
+    private(set) var strideKeys: [PetPose] = []
 
     /// Points to shift a stride key so its head lines up with the first key's, keeping the head steady
     /// through the stride. (Lining up with a pose outside the stride, like Miso's front-facing standing
     /// drawing, would offset the whole walk and snap when it stops.)
     func strideShift(_ pose: PetPose, scale: Double) -> Double {
-        (frame(for: strideKeys[0]).headOffset - frame(for: pose).headOffset) * scale
+        let first = frame(for: strideKeys[0])
+        let drawing = frame(for: pose)
+        return (first.headOffset * first.artworkScale - drawing.headOffset * drawing.artworkScale) * scale
     }
 
     func texture(for pose: PetPose, coat: CoatStyle) -> SKTexture {
@@ -255,6 +229,77 @@ final class PetAtlas {
         case .stretching, .sniffing: .playBow
         case .peeking: .standing
         }
+    }
+
+    /// Crops one region of a sheet to its principal silhouette and maps its landmarks into the trimmed drawing.
+    private static func cut(_ region: Layout.Region, from sheet: CGImage, layout: Layout) throws -> Frame {
+        let sx = Double(sheet.width) / layout.sourceWidth
+        let sy = Double(sheet.height) / layout.sourceHeight
+        let rectangle = CGRect(
+            x: region.x * sx, y: region.y * sy, width: region.width * sx, height: region.height * sy
+        ).integral
+        guard rectangle.minX >= 0, rectangle.minY >= 0,
+            rectangle.maxX <= Double(sheet.width), rectangle.maxY <= Double(sheet.height),
+            rectangle.width > 0, rectangle.height > 0,
+            let cell = sheet.cropping(to: rectangle)
+        else {
+            throw ArtError.invalidFrame
+        }
+        let pixels = Self.rgba(cell)
+        let bounds = Self.opaqueBounds(pixels, width: cell.width, height: cell.height)
+        guard let trimmed = cell.cropping(to: bounds) else { throw ArtError.invalidFrame }
+        let trimmedPixels = Self.rgba(trimmed)
+        let alpha = stride(from: 3, to: trimmedPixels.count, by: 4).map { trimmedPixels[$0] }
+        let texture = SKTexture(cgImage: trimmed)
+        texture.filteringMode = .linear
+        let originX = Double(rectangle.minX + bounds.minX)
+        let originY = Double(rectangle.minY + bounds.minY)
+        func landmark(_ x: Double, _ y: Double) -> SIMD2<Float> {
+            let px = (x * sx - originX) / Double(trimmed.width)
+            let py = 1 - (y * sy - originY) / Double(trimmed.height)
+            return SIMD2(Float(px), Float(py))
+        }
+        let eyes: [Frame.Eye] = (region.eyes ?? []).map {
+            Frame.Eye(
+                center: landmark($0.x, $0.y), radius: Float($0.radius * sx),
+                aspect: $0.aspect.map(Float.init) ?? Frame.Eye.defaultAspect)
+        }
+        let paw: SIMD2<Float>? = region.paw.map { landmark($0.x, $0.y) }
+        let neck: Frame.Neck? = region.neck.map {
+            Frame.Neck(
+                center: landmark($0.x, $0.y),
+                width: Float($0.width * sx / Double(trimmed.width)), angle: $0.angle)
+        }
+        return Frame(
+            image: trimmed, texture: texture, alpha: alpha,
+            width: trimmed.width, height: trimmed.height, eyes: eyes, paw: paw, neck: neck)
+    }
+
+    /// Loads `<Name>Walk.png/.json` when present: a dedicated walk cycle, scaled so its drawings match the
+    /// height of the atlas's own walking drawing.
+    private static func loadWalkCycle(
+        avatar: AvatarKind, from resources: Bundle, reference: Frame?
+    ) throws -> [PetPose: Frame]? {
+        let name = "\(avatar.title)Walk"
+        guard let url = resources.url(forResource: name, withExtension: "png"),
+            let layoutURL = resources.url(forResource: name, withExtension: "json"),
+            let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+            let sheet = CGImageSourceCreateImageAtIndex(source, 0, nil)
+        else { return nil }
+        let layout = try JSONDecoder().decode(Layout.self, from: Data(contentsOf: layoutURL))
+        guard (4...PetPose.walkCycle.count).contains(layout.frames.count), layout.sourceWidth > 0,
+            layout.sourceHeight > 0
+        else { throw ArtError.invalidFrame }
+        let drawn = try layout.frames.map { try Self.cut($0, from: sheet, layout: layout) }
+        let heights = drawn.map(\.height).sorted()
+        let target = Double(reference?.height ?? heights[heights.count / 2])
+        let scale = target / Double(max(1, heights[heights.count / 2]))
+        var cycle: [PetPose: Frame] = [:]
+        for (pose, var frame) in zip(PetPose.walkCycle, drawn) {
+            frame.artworkScale = scale
+            cycle[pose] = frame
+        }
+        return cycle
     }
 
     private static func rgba(_ image: CGImage) -> [UInt8] {

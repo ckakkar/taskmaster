@@ -23,7 +23,8 @@ import Testing
             clock += 1.0 / 60
             engine.tick(seconds: 1.0 / 60)
             scene.render(engine: engine, preferences: preferences, origin: .zero, reducedMotion: false)
-            guard abs(scene.footShift) > 0.02 else { continue }
+            // With many drawings per stride each holds only briefly, so the shear is small.
+            guard abs(scene.footShift) > 0.004 else { continue }
             let frame = atlas.frame(for: scene.pose)
             // An opaque paw pixel in the bottom tenth of the drawing, moved to where the shear draws it.
             for py in stride(from: 0.02, to: 0.1, by: 0.02) {

@@ -31,17 +31,18 @@ public enum WalkCycle {
     /// Which painted key shows at a stride phase and how far the following key has dissolved in.
     /// Each key holds for most of its quarter and eases into the next over the last `blend` of it,
     /// so the drawing reads as steps rather than a constant double exposure.
-    public static func paintedKey(phase: Double, blend: Double = 0.35) -> (
+    public static func paintedKey(phase: Double, count: Int = keyCount, blend: Double = 0.35) -> (
         key: Int, next: Int, mix: Double, within: Double
     ) {
-        guard phase.isFinite else { return (1, 2, 0, 0) }
+        let count = max(1, count)
+        guard phase.isFinite else { return (0, 1 % count, 0, 0) }
         let turns = (phase / (.pi * 2)).truncatingRemainder(dividingBy: 1)
-        let position = (turns < 0 ? turns + 1 : turns) * Double(keyCount)
-        let key = min(keyCount - 1, Int(position))
+        let position = (turns < 0 ? turns + 1 : turns) * Double(count)
+        let key = min(count - 1, Int(position))
         let within = position - Double(key)
         let width = blend.clamped(to: 0.01...1)
         let t = ((within - (1 - width)) / width).clamped(to: 0...1)
-        return (key, (key + 1) % keyCount, t * t * (3 - 2 * t), within)
+        return (key, (key + 1) % count, t * t * (3 - 2 * t), within)
     }
 
     /// How far (as a fraction of one key's travel) painted paws shift back against the body while a key is

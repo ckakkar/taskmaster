@@ -32,13 +32,34 @@ Exact production prompt:
 
 > Use case: stylized-concept. Asset type: one isolated transparent full-body desktop-pet game sprite. Image 1 is a CHARACTER IDENTITY and MATERIAL REFERENCE ONLY, not a layout to reproduce. Create exactly ONE new pose of the SAME Miso red panda: sitting upright, facing 3/4 toward camera right, raising ONE forepaw high beside its head, palm pads facing viewer, offering a high five. Other forepaw relaxed at chest. Friendly eager open brown eyes, closed smiling mouth. Preserve exact warm orange fluffy fur, cream cheeks and eyebrows, dark cocoa legs, huge striped plush tail curling at left, rounded baby proportions and refined soft 3D illustration style. Full body and full raised paw visible, centered in a square canvas with generous transparent margin. Feet on a single baseline. Soft warm top-left lighting. No floor, no shadows separate from body, no scenery, no text, no props, no other animals, no grid. Real alpha transparency, no checkerboard baked in. This must look like the same character from the reference, not a redesign.
 
+## Walk cycles
+
+Walking steps through a dedicated walk sheet when one exists
+(`<Name>Walk.png` and `.json`, four to sixteen drawings in stride order, loaded
+by `PetAtlas` and scaled to the atlas's own walking drawing); otherwise through
+the atlas's walk drawings. The rig adds the body's bob, the tail's swing and
+legs that hold planted paws still, with a short blend between drawings, at the
+display's frame rate.
+
+`ToothlessWalk.png` (12 drawings) was made on 13 November 2026 from the
+existing atlas only: `scripts/make-inbetweens.swift` aligns walk A, standing,
+walk B and standing at the eyes and the ground line, estimates optical flow
+between neighbours with Apple's Vision framework, and paints two in-betweens per
+pair, each weighted toward its nearer painted drawing. No new artwork was
+generated for Toothless; a request to generate new Toothless frames was declined
+by the image tool's content policy and not pursued. Regenerate with:
+
+```sh
+swift scripts/make-inbetweens.swift Sources/Taskmaster/Resources/ToothlessAtlas.png \
+  Sources/Taskmaster/Resources/ToothlessAtlas.json Sources/Taskmaster/Resources/ToothlessWalk.png \
+  Sources/Taskmaster/Resources/ToothlessWalk.json 1,0,2,0 2
+```
+
 ## Current limitations
 
 These are painted poses with procedural animation, not a full skeletal 3D model
-or hand-keyed film sequence. A continuous leg deformation, head and tail rig,
-eye shader and pose crossfades provide movement at up to 60 fps. Walking deforms the
-standing pose with planted feet and lifted swing phases; the original two walk
-poses are retained for future art work, but are no longer switched at 5 Hz.
+or hand-keyed film sequence. In-betweens computed by optical flow leave a faint
+ghost where a paw lifts quickly; in motion it reads as motion blur.
 
 ## Toothless companion — October 2026
 
