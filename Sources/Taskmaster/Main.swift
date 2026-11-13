@@ -5,6 +5,7 @@ import CompanionCore
 enum TaskmasterApplication {
     @MainActor static func main() {
         #if DEBUG
+            if let folder = DebugFilmstrip.folder { exit(DebugFilmstrip.run(into: folder)) }
             do { DebugLaunch.current = try DebugLaunch.parse(CommandLine.arguments) } catch {
                 FileHandle.standardError.write(Data("\(error.localizedDescription)\n".utf8))
                 exit(2)

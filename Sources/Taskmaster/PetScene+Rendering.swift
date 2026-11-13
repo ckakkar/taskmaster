@@ -11,10 +11,20 @@ extension PetScene {
         pawprintSeconds = preferences.pawprintSeconds
         printScale = isPreview ? 0.8 : preferences.size
         if !preferences.muddyPaws { clearFootprints() }
-        let nextPose = atlas.pose(for: engine, reducedMotion: reducedMotion)
+        // Walking steps through the painted stride keys, timed by distance travelled (one frame behind the
+        // motion model, which is advanced below once the pose is known).
+        var nextPose = atlas.pose(for: engine, reducedMotion: reducedMotion)
+        var stride: (key: Int, next: Int, mix: Double)?
+        if engine.state == .walking, !engine.isPaused, reducedMotion || animation.motion.movement.value > 0.3 {
+            let shown = WalkCycle.paintedKey(phase: animation.motion.stride)
+            stride = (shown.key, shown.next, reducedMotion ? 0 : shown.mix)
+            nextPose = atlas.strideKeys[shown.key]
+        }
         let frame = atlas.frame(for: nextPose)
         if pet.texture == nil || pose != nextPose || coat != preferences.coat {
-            if pet.texture != nil && pose != nextPose && !reducedMotion {
+            let withinStride =
+                stride != nil && atlas.strideKeys.contains(pose) && atlas.strideKeys.contains(nextPose)
+            if pet.texture != nil && pose != nextPose && !reducedMotion && !withinStride {
                 crossfadePose()
             }
             pose = nextPose
@@ -73,15 +83,37 @@ extension PetScene {
         if engine.state == .happy && !reducedMotion {
             point.y += abs(sin(engine.stateAge * 7)) * exp(-engine.stateAge * 1.6) * 12
         }
-        pet.position = point
+        // Turning around mid-walk is a little hop; stride keys shift so the head stays where it was.
+        let hop = engine.state == .walking ? animation.motion.turnLift * 5 * (isPreview ? 1 : preferences.size) : 0
+        let strideShift = stride == nil ? 0 : atlas.strideShift(nextPose, scale: scale)
+        pet.position = CGPoint(x: point.x + strideShift * (pet.xScale < 0 ? -1 : 1), y: point.y + hop)
         petLocation = point
         if engine.avatar == .toothless, engine.aerialRoute != nil, time >= flightSparkAt, !engine.isPaused {
             flightSparkAt = time + 0.3
             particles(kind: "spark", color: NSColor(calibratedRed: 0.49, green: 0.72, blue: 1, alpha: 0.7), count: 1)
         }
         animation.update(sprite: pet, frame: frame, engine: engine, reducedMotion: reducedMotion)
+        var wardrobeFrame = frame
+        if let stride, stride.mix > 0.001, atlas.strideKeys[stride.next] != nextPose {
+            let nextPose = atlas.strideKeys[stride.next]
+            let next = atlas.frame(for: nextPose)
+            if strideBlend.texture == nil || strideBlend.name != "\(nextPose.rawValue)-\(coat.rawValue)" {
+                strideBlend.texture = atlas.texture(for: nextPose, coat: coat)
+                strideBlend.name = "\(nextPose.rawValue)-\(coat.rawValue)"
+            }
+            strideBlend.size = CGSize(width: Double(next.width) * scale, height: Double(next.height) * scale)
+            let offset = atlas.strideShift(nextPose, scale: scale) - strideShift
+            strideBlend.position = CGPoint(x: offset, y: 0)
+            strideBlend.alpha = stride.mix
+            strideBlend.isHidden = false
+            animation.update(
+                sprite: strideBlend, frame: next, engine: engine, reducedMotion: reducedMotion, blending: true)
+            wardrobeFrame = PetScene.neckBlend(from: frame, to: next, offset: offset / scale, mix: stride.mix)
+        } else {
+            strideBlend.isHidden = true
+        }
         wardrobe.update(
-            frame: frame, petSize: pet.size, preferences: preferences,
+            frame: wardrobeFrame, petSize: pet.size, preferences: preferences,
             gaze: animation.attention.gaze, tilt: animation.attention.headTilt,
             time: time, moving: movement, reducedMotion: reducedMotion)
         wardrobe.isHidden = preferences.avatar != .miso || wardrobe.isHidden
@@ -160,6 +192,25 @@ extension PetScene {
             pawRing.alpha = reducedMotion ? 0.7 : 0.55 + sin(time * 3) * 0.2
         }
         if engine.isPaused { sleepLabel.isHidden = true }
+    }
+
+    /// A frame whose neck landmark sits between two stride keys' necks, in the first key's coordinates,
+    /// so an accessory glides with the dissolve instead of jumping when the key changes.
+    static func neckBlend(from frame: PetAtlas.Frame, to next: PetAtlas.Frame, offset: Double, mix: Double)
+        -> PetAtlas.Frame
+    {
+        guard let a = frame.neck, let b = next.neck else { return mix < 0.5 ? frame : next }
+        let width = Double(frame.width)
+        let height = Double(frame.height)
+        let bx = ((Double(b.center.x) - 0.5) * Double(next.width) + offset) / width + 0.5
+        let by = Double(b.center.y) * Double(next.height) / height
+        let bw = Double(b.width) * Double(next.width) / width
+        func mixed(_ p: Double, _ q: Double) -> Float { Float(p + (q - p) * mix) }
+        var result = frame
+        result.neck = PetAtlas.Frame.Neck(
+            center: SIMD2(mixed(Double(a.center.x), bx), mixed(Double(a.center.y), by)),
+            width: mixed(Double(a.width), bw), angle: a.angle + (b.angle - a.angle) * mix)
+        return result
     }
 
     private func cursorTarget(at point: CGPoint) -> Point? {

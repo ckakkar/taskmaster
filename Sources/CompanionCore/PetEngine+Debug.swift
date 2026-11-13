@@ -34,6 +34,18 @@
             return true
         }
 
+        /// Filmstrips hold an exact state (the engine then runs normally) or walk to a spot; release builds lack this.
+        public mutating func debugTransition(to next: PetState, at x: Double? = nil) {
+            debugState = nil
+            if let x { position.x = x.clamped(to: habitat.left...habitat.right) }
+            position.y = habitat.floor
+            velocity = .zero
+            isUserNap = next == .sleeping
+            transition(to: next, for: .infinity)
+        }
+
+        public mutating func debugFace(right: Bool) { facingRight = right }
+
         mutating func updateDebugState(_ selected: DebugPetState, dt: Double) {
             switch selected {
             case .sitting, .sleeping:

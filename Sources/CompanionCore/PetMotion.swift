@@ -22,6 +22,26 @@ public enum WalkCycle {
             + (-2 * t3 + 3 * t2) * halfStep + (t3 - t2) * tangent
         return Point(x: x, y: pow(sin(t * .pi), 1.2) * 0.055)
     }
+
+    /// The painted keys of one stride, in order: contact A, passing, contact B, passing.
+    public static let keyCount = 4
+
+    /// Which painted key shows at a stride phase and how far the following key has dissolved in.
+    /// Each key holds for most of its quarter and eases into the next over the last `blend` of it,
+    /// so the drawing reads as steps rather than a constant double exposure.
+    public static func paintedKey(phase: Double, blend: Double = 0.2) -> (key: Int, next: Int, mix: Double) {
+        guard phase.isFinite else { return (1, 2, 0) }
+        let turns = (phase / (.pi * 2)).truncatingRemainder(dividingBy: 1)
+        let position = (turns < 0 ? turns + 1 : turns) * Double(keyCount)
+        let key = min(keyCount - 1, Int(position))
+        let within = position - Double(key)
+        let width = blend.clamped(to: 0.01...1)
+        let t = ((within - (1 - width)) / width).clamped(to: 0...1)
+        return (key, (key + 1) % keyCount, t * t * (3 - 2 * t))
+    }
+
+    /// Body height through a stride: lowest as a paw lands (contact keys), highest while passing.
+    public static func bob(phase: Double) -> Double { -cos(phase * 2) }
 }
 
 /// An analytic, critically damped spring stays stable at different display rates.
@@ -53,6 +73,8 @@ public struct PetMotion: Sendable {
     public private(set) var squash = MotionSpring()
     public private(set) var facingRight = true
     public private(set) var turnWidth: Double = 1
+    /// A small hop while turning around: 0 when settled, 1 at the middle of the turn.
+    public private(set) var turnLift: Double = 0
     private var turnProgress: Double = 1
     private var turnDestination = true
     private var lastPositionX: Double?
@@ -81,6 +103,7 @@ public struct PetMotion: Sendable {
         turnProgress = min(1, turnProgress + dt * 5.5)
         if turnProgress >= 0.5 || reducedMotion { facingRight = turnDestination }
         turnWidth = reducedMotion ? 1 : 1 - sin(turnProgress * .pi) * 0.24
+        turnLift = reducedMotion ? 0 : sin(turnProgress * .pi)
     }
 
     public mutating func land(speed: Double) {

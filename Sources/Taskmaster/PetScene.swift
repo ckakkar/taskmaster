@@ -8,6 +8,8 @@ final class PetScene: SKScene {
     weak var library: MemeLibrary?
     // Internal node storage is shared by the scene's rendering/effects feature extensions.
     let pet = SKSpriteNode()
+    /// The next stride key, dissolving in over `pet` (a child, so it shares the flip, squash and lean).
+    let strideBlend = SKSpriteNode()
     let shadow = SKShapeNode(ellipseOf: CGSize(width: 110, height: 15))
     let ball = SKShapeNode(circleOfRadius: 12)
     let ballStripe = SKShapeNode(circleOfRadius: 8)
@@ -84,6 +86,10 @@ final class PetScene: SKScene {
         addChild(pet)
         wardrobe.zPosition = 0.5
         pet.addChild(wardrobe)
+        strideBlend.anchorPoint = CGPoint(x: 0.5, y: 0)
+        strideBlend.zPosition = 0.25
+        strideBlend.isHidden = true
+        pet.addChild(strideBlend)
 
         ball.fillColor = NSColor(calibratedRed: 0.31, green: 0.59, blue: 0.52, alpha: 1)
         ball.strokeColor = NSColor(calibratedRed: 0.20, green: 0.43, blue: 0.38, alpha: 1)

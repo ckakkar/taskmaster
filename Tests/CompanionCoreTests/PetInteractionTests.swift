@@ -26,6 +26,31 @@ private let habitat = Habitat(left: 100, right: 1_200, floor: 30, ceiling: 800)
     #expect(abs(beforeLanding.x - afterLanding.x) < 0.0001)
 }
 
+@Test func paintedWalkKeysStepInOrderAndDissolveWithoutJumps() {
+    var sequence: [Int] = []
+    var previousBlend: Double?
+    for sample in 0...4_000 {
+        let phase = Double(sample) / 4_000 * .pi * 2
+        let shown = WalkCycle.paintedKey(phase: phase)
+        #expect((0...1).contains(shown.mix))
+        #expect(shown.next == (shown.key + 1) % WalkCycle.keyCount)
+        if sequence.last != shown.key { sequence.append(shown.key) }
+        // What is on screen (key + mix) never jumps: the mix reaches 1 just before the key advances.
+        let blended = Double(shown.key) + shown.mix
+        if let previousBlend {
+            let step = blended - previousBlend
+            #expect(abs(step) < 0.02 || abs(step + Double(WalkCycle.keyCount)) < 0.02)
+        }
+        previousBlend = blended
+    }
+    #expect(sequence == [0, 1, 2, 3, 0])
+    // Keys hold most of their quarter: the first 60% of each shows a single drawing.
+    #expect(WalkCycle.paintedKey(phase: .pi / 2 * 0.55).mix == 0)
+    #expect(WalkCycle.paintedKey(phase: -.pi / 2).key == 3)
+    #expect(WalkCycle.paintedKey(phase: .nan).mix == 0)
+    #expect(WalkCycle.bob(phase: 0) < WalkCycle.bob(phase: .pi / 2))
+}
+
 @Test func springsKeepTheSameTimingAtDifferentFrameRates() {
     var results: [Double] = []
     for fps in [30, 60, 120] {

@@ -71,6 +71,13 @@ final class PetAtlas {
         }
         var neck: Neck? = nil
 
+        /// Horizontal distance (texture pixels) from the bottom-centre anchor to the eyes; stride keys line up here
+        /// so the head stays steady while the painted legs change.
+        var headOffset: Double {
+            let x = eyes.isEmpty ? 0.6 : Double(eyes.map(\.center.x).reduce(0, +)) / Double(eyes.count)
+            return (x - 0.5) * Double(width)
+        }
+
         func contains(x: Double, y: Double) -> Bool {
             guard x >= 0, y >= 0, x < 1, y < 1 else { return false }
             let px = min(width - 1, Int(x * Double(width)))
@@ -199,6 +206,18 @@ final class PetAtlas {
     }
 
     func frame(for pose: PetPose) -> Frame { frames[pose]! }
+
+    /// The painted stride, in `WalkCycle.paintedKey` order: contact A, passing, contact B, passing.
+    /// Toothless's standing drawing is in profile and makes a natural passing pose; Miso's faces the viewer,
+    /// so she alternates her two profile strides instead.
+    var strideKeys: [PetPose] {
+        avatar == .miso ? [.walkA, .walkA, .walkB, .walkB] : [.walkA, .standing, .walkB, .standing]
+    }
+
+    /// Points to shift a stride key so its head lines up with the standing pose's.
+    func strideShift(_ pose: PetPose, scale: Double) -> Double {
+        (frame(for: .standing).headOffset - frame(for: pose).headOffset) * scale
+    }
 
     func texture(for pose: PetPose, coat: CoatStyle) -> SKTexture {
         let frame = frame(for: pose)
