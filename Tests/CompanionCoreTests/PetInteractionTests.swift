@@ -145,3 +145,19 @@ private let habitat = Habitat(left: 100, right: 1_200, floor: 30, ceiling: 800)
     for _ in 0..<700 { pet.tick(seconds: 0.1) }
     #expect(pet.isFollowingCursor)
 }
+
+@Test func pausingMidStrideHoldsTheGaitAndResumesWhereItLeftOff() {
+    var engine = PetEngine(habitat: habitat, seed: 70)
+    engine.startDebugState(.walking)
+    var motion = PetMotion()
+    for _ in 0..<60 {
+        engine.tick(seconds: 1.0 / 60)
+        motion.advance(seconds: 1.0 / 60, engine: engine, reducedMotion: false)
+    }
+    let walking = motion.movement.value
+    let stride = motion.stride
+    #expect(walking > 0.9)
+    engine.isPaused = true
+    for _ in 0..<120 { motion.advance(seconds: 1.0 / 60, engine: engine, reducedMotion: false) }
+    #expect(motion.movement.value == walking && motion.stride == stride)
+}

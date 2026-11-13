@@ -216,7 +216,7 @@ final class DesktopController: NSObject {
             let interactive =
                 engine.aerialRoute == nil
                 && (cardHit || scene.hitPet(localPoint) || scene.hitPaw(localPoint) || scene.hitBall(localPoint)
-                    || scene.hitNote(localPoint))
+                    || scene.hitNote(localPoint) || canvas.awaitsSecondClick(at: localPoint))
             // Every assignment is a window-server round trip, even when the value is unchanged.
             let ignoresMouse = !(isDragging || interactive)
             if panel.ignoresMouseEvents != ignoresMouse { panel.ignoresMouseEvents = ignoresMouse }
@@ -395,6 +395,8 @@ final class PetInteractionView: SKView {
     private var lastTime: Double = 0
     private var wasDragged = false
     private var throwVelocity = Point.zero
+    private var petClick: (time: Double, point: CGPoint)?
+    private var clickedHead = false
 
     override var acceptsFirstResponder: Bool { false }
 
@@ -422,8 +424,23 @@ final class PetInteractionView: SKView {
             driver.isDragging = true
         } else if driver.scene.hitPet(point) || driver.scene.hitPaw(point) {
             target = .pet
+            clickedHead = driver.scene.hitHead(point) && !driver.scene.hitPaw(point)
+            petClick = (event.timestamp, point)
             if event.clickCount == 2 { driver.model.openRoom?() }
+        } else if event.clickCount == 2, awaitsSecondClick(at: point) {
+            // The first click's reaction may have changed the silhouette under the pointer.
+            petClick = nil
+            driver.model.openRoom?()
         }
+    }
+
+    /// Right after a click on the companion, the same spot stays clickable for a double-click, even if the
+    /// reaction (a delighted pose, a hop) has moved the fur out from under the pointer.
+    func awaitsSecondClick(at point: CGPoint) -> Bool {
+        guard let petClick, ProcessInfo.processInfo.systemUptime - petClick.time < NSEvent.doubleClickInterval else {
+            return false
+        }
+        return hypot(point.x - petClick.point.x, point.y - petClick.point.y) < 10
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -454,7 +471,13 @@ final class PetInteractionView: SKView {
         // Resting before letting go drops the ball where it is rather than throwing it at the last drag's speed.
         if event.timestamp - lastTime > 0.12 { throwVelocity = .zero }
         if target == .pet {
-            if wasDragged { driver.engine.endDrag() } else if event.clickCount < 2 { driver.model.perform(.pet) }
+            if wasDragged {
+                driver.engine.endDrag()
+            } else if event.clickCount < 2 {
+                // A high five always counts as one; otherwise the nose gets a boop and the fur a pat.
+                let highFive = driver.engine.state == .highFive
+                driver.model.perform(clickedHead && !highFive ? .boop : .pet)
+            }
         } else if target == .ball {
             driver.engine.releaseToy(velocity: throwVelocity)
         }
@@ -465,4 +488,14 @@ final class PetInteractionView: SKView {
     }
 
     override func rightMouseDown(with event: NSEvent) { driver?.showContextMenu(event: event, view: self) }
+
+    /// Scrolling over the fur tickles; the panel only receives it while the pointer is on the companion.
+    override func scrollWheel(with event: NSEvent) {
+        guard let driver, target == nil else { return }
+        let point = driver.scene.convertPoint(fromView: convert(event.locationInWindow, from: nil))
+        guard driver.scene.hitPet(point) else { return }
+        let distance = abs(event.scrollingDeltaY) + abs(event.scrollingDeltaX)
+        driver.engine.scroll(distance: event.hasPreciseScrollingDeltas ? distance : distance * 10)
+        driver.renderNow()
+    }
 }

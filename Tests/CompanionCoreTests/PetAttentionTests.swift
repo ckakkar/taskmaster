@@ -76,3 +76,29 @@ import Testing
     }
     #expect(pet.state == .sleeping)
 }
+
+@Test func anIdleCompanionGlancesAboutAndFlicksItsTailButNotWhenWatchedAsleepOrStill() {
+    var attention = PetAttention(seed: 22)
+    var glances = 0
+    var flicked = false
+    var wasGlancing = false
+    for _ in 0..<(30 * 60) {
+        attention.advance(seconds: 1.0 / 30, target: nil, asleep: false, reducedMotion: false)
+        if attention.glance != nil && !wasGlancing { glances += 1 }
+        wasGlancing = attention.glance != nil
+        if abs(attention.tailFlick) > 0.2 { flicked = true }
+        #expect(abs(attention.tailFlick) <= 1)
+    }
+    // Roughly every 5–12 seconds, never constantly.
+    #expect(glances >= 4 && glances <= 12)
+    #expect(flicked)
+
+    for (target, asleep, reduced) in [(Point(x: 0.4, y: 0), false, false), (nil, true, false), (nil, false, true)] {
+        var quiet = PetAttention(seed: 23)
+        for _ in 0..<(30 * 40) {
+            quiet.advance(seconds: 1.0 / 30, target: target, asleep: asleep, reducedMotion: reduced)
+            #expect(quiet.glance == nil)
+            if asleep || reduced { #expect(quiet.tailFlick == 0) }
+        }
+    }
+}

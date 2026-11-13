@@ -9,6 +9,10 @@ public struct PetAttention: Sendable {
     public private(set) var time: Double = 0
     public private(set) var isWatching = false
     public private(set) var engagement: Double = 0
+    /// A quick flick of the tail every so often: a decaying wave, 0 at rest.
+    public private(set) var tailFlick: Double = 0
+    /// Where an unoccupied companion is glancing, if anywhere (gaze space, -1...1).
+    public private(set) var glance: Point?
     private var headX = MotionSpring()
     private var headY = MotionSpring()
     private var interest = MotionSpring()
@@ -18,10 +22,24 @@ public struct PetAttention: Sendable {
     private var nextEarFlick: Double = 4
     private var earStarted: Double = -100
     private var doubleBlink = false
+    private var nextTailFlick: Double = 6
+    private var tailStarted: Double = -100
+    private var nextGlance: Double = 8
+    private var glanceUntil: Double = 0
 
     public init(seed: UInt64 = UInt64.random(in: 1...UInt64.max)) {
         random = RandomStream(seed: seed)
         nextBlink = random.value(in: 2.5...5.5)
+    }
+
+    /// A boop or a noticed pointer: an ear flick and a flick of the tail at once, with a blink if asked.
+    public mutating func react(blink: Bool) {
+        if blink {
+            blinkStarted = time
+            nextBlink = max(nextBlink, time + 1.5)
+        }
+        earStarted = time
+        tailStarted = time
     }
 
     public mutating func advance(seconds: Double, target: Point?, asleep: Bool, reducedMotion: Bool) {
@@ -29,12 +47,24 @@ public struct PetAttention: Sendable {
         let dt = min(0.1, seconds)
         time += dt
         isWatching = target != nil && !asleep
+        // Left alone, the companion glances about now and then instead of staring straight ahead.
+        if target != nil || asleep || reducedMotion {
+            glance = nil
+            nextGlance = max(nextGlance, time + 4)
+        } else if glance != nil, time >= glanceUntil {
+            glance = nil
+            nextGlance = time + random.value(in: 5...12)
+        } else if glance == nil, time >= nextGlance {
+            glance = Point(x: random.value(in: -0.75...0.75), y: random.value(in: -0.25...0.45))
+            glanceUntil = time + random.value(in: 0.9...2.2)
+        }
+        let aim = target ?? glance
         let destination =
             asleep
             ? .zero
             : Point(
-                x: (target?.x ?? 0).clamped(to: -1...1),
-                y: (target?.y ?? 0).clamped(to: -1...1)
+                x: (aim?.x ?? 0).clamped(to: -1...1),
+                y: (aim?.y ?? 0).clamped(to: -1...1)
             )
         // Fast enough to acknowledge a person, soft enough to avoid a mechanical snap.
         let follow = 1 - exp(-dt * (isWatching ? 12 : 3.5))
@@ -66,5 +96,11 @@ public struct PetAttention: Sendable {
         }
         let earAge = time - earStarted
         earFlick = reducedMotion || asleep || earAge > 0.48 ? 0 : sin(earAge * 30) * exp(-earAge * 7)
+        if time >= nextTailFlick {
+            tailStarted = time
+            nextTailFlick = time + random.value(in: 6...14)
+        }
+        let tailAge = time - tailStarted
+        tailFlick = reducedMotion || asleep || tailAge > 0.9 ? 0 : sin(tailAge * 17) * exp(-tailAge * 4.5)
     }
 }

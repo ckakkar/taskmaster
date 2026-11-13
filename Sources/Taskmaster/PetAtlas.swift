@@ -214,9 +214,11 @@ final class PetAtlas {
         avatar == .miso ? [.walkA, .walkA, .walkB, .walkB] : [.walkA, .standing, .walkB, .standing]
     }
 
-    /// Points to shift a stride key so its head lines up with the standing pose's.
+    /// Points to shift a stride key so its head lines up with the first key's, keeping the head steady
+    /// through the stride. (Lining up with a pose outside the stride, like Miso's front-facing standing
+    /// drawing, would offset the whole walk and snap when it stops.)
     func strideShift(_ pose: PetPose, scale: Double) -> Double {
-        (frame(for: .standing).headOffset - frame(for: pose).headOffset) * scale
+        (frame(for: strideKeys[0]).headOffset - frame(for: pose).headOffset) * scale
     }
 
     func texture(for pose: PetPose, coat: CoatStyle) -> SKTexture {

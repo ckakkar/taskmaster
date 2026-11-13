@@ -31,6 +31,8 @@ public enum PetAction: Sendable {
     case surprise
     case offerHighFive, followCursor, stopFollowing, findTreat, stretch, saySomething, breakReminder
     case muddyZoomies, signature, hideAndSeek
+    /// A tap on the nose, and a scroll over the fur.
+    case boop, tickle
 }
 
 public enum PetEvent: Sendable {
@@ -43,6 +45,11 @@ public enum PetEvent: Sendable {
     case toyHit(Point)
     case highFive(Point)
     case cursorCaught(Point)
+    case booped(Point)
+    case giggle(Point)
+    case dizzy(Point)
+    /// The pointer has rested on the companion for a moment and been noticed.
+    case noticed(Point)
 }
 
 public struct Toy: Equatable, Sendable {
@@ -121,6 +128,18 @@ public struct PetEngine: Sendable {
     var releaseAt: Double = 0
     var dragOffset: Point = .zero
     var lastDragAt: Double = 0
+    var shakeTurns: [Double] = []
+    var shakeSign = 0
+    var boopCount = 0
+    var lastBoop: Double = -10
+    var scrollDistance: Double = 0
+    var lastTickle: Double = -10
+    var hoverStill: Double = 0
+    var noticedHover = false
+    /// Until when the companion is reeling from being shaken.
+    public internal(set) var dizzyUntil: Double = -1
+    /// Until when the companion is wriggling from a tickle.
+    public internal(set) var tickledUntil: Double = -1
     var events: [PetEvent] = []
     var lastPrank: Double = -18
     var lastToyHit: Double = -2
@@ -245,7 +264,11 @@ public struct PetEngine: Sendable {
                 position.y = habitat.floor
                 events.append(.landing(position, abs(velocity.y)))
                 velocity = .zero
-                transition(to: .sitting, for: 3)
+                transition(to: .sitting, for: isDizzy ? 4 : 3)
+                if isDizzy {
+                    dizzyUntil = max(dizzyUntil, elapsed + 2.5)
+                    speak("The floor is spinning. Rude.")
+                }
             }
             return
         }
@@ -348,7 +371,7 @@ public struct PetEngine: Sendable {
     public mutating func perform(_ action: PetAction) {
         if aerialRoute != nil {
             switch action {
-            case .pet, .treat:
+            case .pet, .treat, .boop, .tickle:
                 interactionCount += 1
                 events.append(.hearts(position))
                 return
@@ -374,7 +397,7 @@ public struct PetEngine: Sendable {
         if !speaking {
             let canKeepCard: Bool =
                 switch action {
-                case .pet, .treat, .offerHighFive, .stretch, .saySomething: true
+                case .pet, .treat, .offerHighFive, .stretch, .saySomething, .boop, .tickle: true
                 default: false
                 }
             cancelCursorHeist()
@@ -458,6 +481,10 @@ public struct PetEngine: Sendable {
         case .hideAndSeek:
             toy = nil
             if !beginPeek() { transition(to: .sitting, for: 4) }
+        case .boop:
+            reactToBoop()
+        case .tickle:
+            reactToTickle()
         }
     }
 
@@ -473,6 +500,8 @@ public struct PetEngine: Sendable {
         dragOffset = Point(x: position.x - pointer.x, y: position.y - pointer.y)
         velocity = .zero
         lastDragAt = elapsed
+        shakeTurns.removeAll()
+        shakeSign = 0
         transition(to: .carried, for: .infinity)
     }
 
@@ -486,6 +515,7 @@ public struct PetEngine: Sendable {
         )
         position = next
         lastDragAt = elapsed
+        noticeShake()
     }
 
     public mutating func endDrag() {

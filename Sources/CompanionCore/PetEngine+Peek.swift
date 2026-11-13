@@ -41,7 +41,7 @@ extension PetEngine {
         switch action {
         case .saySomething:
             return false
-        case .pet, .treat:
+        case .pet, .treat, .boop, .tickle:
             guard route.isVisible else { break }
             interactionCount += 1
             affection = min(1, affection + 0.055)

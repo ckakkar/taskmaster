@@ -15,7 +15,8 @@ extension PetScene {
         // motion model, which is advanced below once the pose is known).
         var nextPose = atlas.pose(for: engine, reducedMotion: reducedMotion)
         var stride: (key: Int, next: Int, mix: Double)?
-        if engine.state == .walking, !engine.isPaused, reducedMotion || animation.motion.movement.value > 0.3 {
+        // Pausing mid-walk holds the current stride drawing rather than snapping back to standing.
+        if engine.state == .walking, engine.isPaused || reducedMotion || animation.motion.movement.value > 0.3 {
             let shown = WalkCycle.paintedKey(phase: animation.motion.stride)
             stride = (shown.key, shown.next, reducedMotion ? 0 : shown.mix)
             nextPose = atlas.strideKeys[shown.key]
@@ -26,6 +27,7 @@ extension PetScene {
                 stride != nil && atlas.strideKeys.contains(pose) && atlas.strideKeys.contains(nextPose)
             if pet.texture != nil && pose != nextPose && !reducedMotion && !withinStride {
                 crossfadePose()
+                animation.settle(from: pose, to: nextPose)
             }
             pose = nextPose
             coat = preferences.coat
@@ -80,6 +82,14 @@ extension PetScene {
         if engine.aerialRoute != nil, !reducedMotion {
             pet.zRotation = (engine.velocity.y * (facingRight ? 1 : -1) * 0.0007).clamped(to: -0.16...0.16)
         }
+        if !reducedMotion {
+            // A tickle is a quick wriggle that fades out; dizziness a slow, woozy sway.
+            let tickle = max(0, engine.tickledUntil - engine.elapsed) / 1.6
+            pet.zRotation += sin(time * 31) * 0.045 * tickle
+            if engine.isDizzy, engine.state != .carried {
+                pet.zRotation += sin(time * 4.2) * 0.05 * min(1, (engine.dizzyUntil - engine.elapsed) / 1.5)
+            }
+        }
         if engine.state == .happy && !reducedMotion {
             point.y += abs(sin(engine.stateAge * 7)) * exp(-engine.stateAge * 1.6) * 12
         }
@@ -106,6 +116,7 @@ extension PetScene {
             strideBlend.position = CGPoint(x: offset, y: 0)
             strideBlend.alpha = stride.mix
             strideBlend.isHidden = false
+            blendPose = nextPose
             animation.update(
                 sprite: strideBlend, frame: next, engine: engine, reducedMotion: reducedMotion, blending: true)
             wardrobeFrame = PetScene.neckBlend(from: frame, to: next, offset: offset / scale, mix: stride.mix)
@@ -118,8 +129,10 @@ extension PetScene {
             time: time, moving: movement, reducedMotion: reducedMotion)
         wardrobe.isHidden = preferences.avatar != .miso || wardrobe.isHidden
         if let transition = poseTransition, transition.parent != nil { transition.position = point }
-        if let speech = speechBubble, speech.parent != nil {
-            speech.position = speechPosition(width: speech.frame.width, height: speech.frame.height)
+        if let speech = speechBubble as? SKShapeNode, speech.parent != nil, let body = speech.path?.boundingBox {
+            speech.position = speechPosition(width: body.width, height: body.height)
+            speechTail?.position.x = (point.x - speech.position.x).clamped(
+                to: -body.width / 2 + 18...body.width / 2 - 18)
         }
         focusLabel.position = CGPoint(x: point.x, y: point.y + pet.size.height + 20)
         focusTrack.position = CGPoint(x: point.x, y: point.y + pet.size.height + 12)
@@ -147,9 +160,15 @@ extension PetScene {
         let below = point.y - 20
         nameLabel.position = CGPoint(x: point.x, y: below >= 4 ? below : point.y + pet.size.height + 30)
         nameLabel.isHidden = isPreview || !preferences.showName
+        let headSide: Double = pet.xScale < 0 ? -1 : 1
         sleepLabel.position = CGPoint(
-            x: point.x + pet.size.width * 0.25, y: point.y + pet.size.height + 15 + breath * 3)
-        sleepLabel.isHidden = engine.state != .sleeping
+            x: point.x + pet.size.width * 0.25 * headSide, y: point.y + pet.size.height + 15 + breath * 3)
+        // With motion, sleep is a slow drift of Zs; Reduce Motion keeps the still label.
+        sleepLabel.isHidden = engine.state != .sleeping || !reducedMotion
+        if engine.state == .sleeping, !reducedMotion, !engine.isPaused, time >= nextSleepZ {
+            nextSleepZ = time + 1.5
+            sleepyZ(from: CGPoint(x: point.x + pet.size.width * 0.22 * headSide, y: point.y + pet.size.height * 0.8))
+        }
         if let toy = engine.toy {
             let plasma = engine.avatar == .toothless
             ball.fillColor =
@@ -192,6 +211,7 @@ extension PetScene {
             pawRing.alpha = reducedMotion ? 0.7 : 0.55 + sin(time * 3) * 0.2
         }
         if engine.isPaused { sleepLabel.isHidden = true }
+        updateDizzyStars(engine: engine, time: time)
     }
 
     /// A frame whose neck landmark sits between two stride keys' necks, in the first key's coordinates,
@@ -213,6 +233,44 @@ extension PetScene {
         return result
     }
 
+    /// Three little stars circle the head while the companion is dizzy; with Reduce Motion they stay put.
+    private func updateDizzyStars(engine: PetEngine, time: Double) {
+        guard engine.isDizzy, !engine.isPaused else {
+            dizzyStars.isHidden = true
+            return
+        }
+        if dizzyStars.children.isEmpty {
+            for _ in 0..<3 {
+                let path = CGMutablePath()
+                for corner in 0..<10 {
+                    let radius = corner % 2 == 0 ? 5.5 : 2.4
+                    let angle = Double(corner) * .pi / 5 + .pi / 2
+                    let vertex = CGPoint(x: cos(angle) * radius, y: sin(angle) * radius)
+                    if corner == 0 { path.move(to: vertex) } else { path.addLine(to: vertex) }
+                }
+                path.closeSubpath()
+                let star = SKShapeNode(path: path)
+                star.fillColor = NSColor(calibratedRed: 1, green: 0.82, blue: 0.35, alpha: 1)
+                star.strokeColor = NSColor(calibratedRed: 0.85, green: 0.58, blue: 0.2, alpha: 0.8)
+                star.lineWidth = 0.8
+                dizzyStars.addChild(star)
+            }
+        }
+        dizzyStars.isHidden = false
+        let fade = min(1, (engine.dizzyUntil - engine.elapsed) / 0.6)
+        dizzyStars.alpha = fade
+        // Circling the crown, above the eyes.
+        dizzyStars.position = CGPoint(x: headPoint.x, y: headPoint.y + pet.size.height * 0.14)
+        let radius = max(18, pet.size.width * 0.16)
+        for (index, star) in dizzyStars.children.enumerated() {
+            let angle = (reducedMotion ? 0 : time * 4.5) + Double(index) * .pi * 2 / 3
+            star.position = CGPoint(x: cos(angle) * radius, y: sin(angle) * radius * 0.32)
+            // Stars behind the head are smaller and dimmer.
+            star.setScale(0.8 + sin(angle) * -0.2)
+            star.zPosition = sin(angle) > 0 ? -0.1 : 0.1
+        }
+    }
+
     private func cursorTarget(at point: CGPoint) -> Point? {
         guard let view, let window = view.window else { return nil }
         let inWindow = window.convertPoint(fromScreen: NSEvent.mouseLocation)
@@ -225,6 +283,8 @@ extension PetScene {
         return Point(x: (cursor.x - head.x) / 145 * (pet.xScale > 0 ? 1 : -1), y: (cursor.y - head.y) / 145)
     }
 
+    /// The old drawing (with its warp) sits over the new one and fades away, so a pose change dissolves
+    /// instead of popping; the motion model adds the squash or stretch.
     private func crossfadePose() {
         poseTransition?.removeFromParent()
         let previous = SKSpriteNode(texture: pet.texture)
@@ -235,11 +295,13 @@ extension PetScene {
         previous.xScale = pet.xScale
         previous.yScale = pet.yScale
         previous.zRotation = pet.zRotation
+        previous.warpGeometry = pet.warpGeometry
         previous.zPosition = 3.1
         addChild(previous)
         poseTransition = previous
-        previous.alpha = 0.14
-        previous.run(.sequence([.fadeOut(withDuration: 0.08), .removeFromParent()]))
+        let fade = SKAction.fadeOut(withDuration: 0.15)
+        fade.timingMode = .easeIn
+        previous.run(.sequence([fade, .removeFromParent()]))
         pet.alpha = 1
     }
 }

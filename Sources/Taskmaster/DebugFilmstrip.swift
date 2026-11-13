@@ -29,6 +29,8 @@
             let seconds: Double
             var fps: Double = 30
             var flying = false
+            /// Extra room (points) above the companion, for speech bubbles and notes.
+            var headroom: Double = 0
             let setup: (inout PetEngine) -> Void
             /// Steps run once when the simulated clock (measured from the end of the warmup) reaches them.
             var script: [(at: Double, run: (inout PetEngine) -> Void)] = []
@@ -40,6 +42,10 @@
         static var scenarios: [Scenario] {
             [
                 Scenario(name: "walk", seconds: 1.2) { $0.startDebugState(.walking) },
+                Scenario(
+                    name: "pause", warmup: 0.8, seconds: 1.2, fps: 15,
+                    setup: { $0.startDebugState(.walking) },
+                    script: [(0.4, { $0.isPaused = true }), (0.9, { $0.isPaused = false })]),
                 Scenario(
                     name: "turn", warmup: 0.8, seconds: 1.4,
                     setup: { engine in
@@ -73,6 +79,31 @@
                         return (t, { $0.drag(to: Point(x: 600 + t * 260, y: 100 + t * 230), seconds: 0.06) })
                     } + [(1.0, { $0.endDrag() })]),
                 Scenario(name: "fly", seconds: 2, fps: 15, flying: true) { $0.startDebugState(.flying) },
+                Scenario(
+                    name: "boop", warmup: 0.3, seconds: 2.4, fps: 15, headroom: 60,
+                    setup: { $0.debugTransition(to: .sitting, at: 600) },
+                    script: [
+                        (0.1, { $0.perform(.boop) }), (0.6, { $0.perform(.boop) }), (1.0, { $0.perform(.boop) }),
+                    ]),
+                Scenario(
+                    name: "tickle", warmup: 0.3, seconds: 2, fps: 15,
+                    setup: { $0.debugTransition(to: .sitting, at: 600) },
+                    script: [(0.1, { $0.scroll(distance: 80) })]),
+                Scenario(
+                    name: "dizzy", warmup: 0.2, seconds: 4, fps: 12, headroom: 60,
+                    setup: { engine in
+                        engine.debugTransition(to: .sitting, at: 600)
+                        engine.beginDrag(at: Point(x: 600, y: 100))
+                    },
+                    script: (0..<48).map { step in
+                        let x = 600 + Double((step / 6) % 2 == 0 ? step % 6 : 6 - step % 6) * 14
+                        return (Double(step) / 60, { $0.drag(to: Point(x: x, y: 180), seconds: 1.0 / 60) })
+                    } + [(0.9, { $0.endDrag() })]),
+                Scenario(name: "sleep", warmup: 0.5, seconds: 4, fps: 8) { $0.debugTransition(to: .sleeping, at: 600) },
+                Scenario(
+                    name: "speech", warmup: 0.2, seconds: 2.4, fps: 15, headroom: 80,
+                    setup: { $0.debugTransition(to: .sitting, at: 600) },
+                    script: [(0.1, { $0.perform(.saySomething) }), (1.2, { $0.perform(.pet) })]),
             ]
         }
 
@@ -139,7 +170,7 @@
             engine.avatar = avatar
             engine.visualScale = size
             engine.mischief = 0.25
-            engine.chatter = 0
+            engine.chatter = 0.35  // Spontaneous chatter waits 75 s, far past any scenario.
             engine.stage = 0...sceneSize.width
             scenario.setup(&engine)
             let renderer = SKRenderer(device: device)
@@ -195,11 +226,12 @@
                     try write(image, to: output.appendingPathComponent("full.png"))
                 }
                 // A box around the companion (the whole sky for flights), floor 30 points above its bottom edge.
-                let cropHeight = scenario.flying ? sceneSize.height - 20 : box.height
+                let cropWidth = scenario.headroom > 0 ? max(box.width, 380) : box.width
+                let cropHeight = scenario.flying ? sceneSize.height - 20 : box.height + scenario.headroom
                 let crop = CGRect(
-                    x: (scene.petLocation.x - box.width / 2) * renderScale,
+                    x: (scene.petLocation.x - cropWidth / 2) * renderScale,
                     y: (sceneSize.height - Double(habitat.floor) + 30 - cropHeight) * renderScale,
-                    width: box.width * renderScale, height: cropHeight * renderScale
+                    width: cropWidth * renderScale, height: cropHeight * renderScale
                 ).intersection(CGRect(x: 0, y: 0, width: width, height: height))
                 if let cropped = image.cropping(to: crop.integral) {
                     frames.append(cropped)

@@ -48,12 +48,15 @@ struct PetPreview: NSViewRepresentable {
             tracking = area
         }
 
+        /// Only travel from fur to fur counts as stroking: sweeping in from elsewhere in the room does not.
         override func mouseMoved(with event: NSEvent) {
             let point = convert(event.locationInWindow, from: nil)
+            guard let scene = scene as? PetScene, scene.hitPet(scene.convertPoint(fromView: point)), let model else {
+                lastPointer = nil
+                return
+            }
             defer { lastPointer = point }
-            guard let previous = lastPointer, let scene = scene as? PetScene,
-                scene.hitPet(scene.convertPoint(fromView: point)), let model
-            else { return }
+            guard let previous = lastPointer else { return }
             model.desktop.engine.stroke(distance: hypot(point.x - previous.x, point.y - previous.y))
         }
 
@@ -75,7 +78,9 @@ struct PetPreview: NSViewRepresentable {
                     || scene.hitPaw(scene.convertPoint(fromView: convert(event.locationInWindow, from: nil)))
             else { return }
             lastPointer = convert(event.locationInWindow, from: nil)
-            model?.perform(.pet)
+            let point = scene.convertPoint(fromView: convert(event.locationInWindow, from: nil))
+            let boop = scene.hitHead(point) && !scene.hitPaw(point) && model?.desktop.engine.state != .highFive
+            model?.perform(boop ? .boop : .pet)
         }
         /// The same menu as right-clicking the companion on the desktop.
         override func rightMouseDown(with event: NSEvent) {

@@ -63,14 +63,19 @@ extension PetEngine {
 
     mutating func observeCursor(_ cursor: Point?, contact: Bool, dt: Double) {
         defer { previousCursor = cursor }
-        guard aerialRoute == nil, peek == nil, delivery == nil, cursorHeist == nil, !isFocusing else { return }
+        guard aerialRoute == nil, peek == nil, delivery == nil, cursorHeist == nil else { return }
         guard let cursor, let previousCursor else { return }
         let distance = cursor.distance(to: previousCursor)
+        // Stroking is a person's own choice, so it works during focus as it does in the room.
         if contact {
+            noticeHover(still: distance < 0.75, dt: dt)
             stroke(distance: distance)
             cursorInterest = 0
             return
         }
+        hoverStill = 0
+        noticedHover = false
+        guard !isFocusing else { return }
         strokeDistance = max(0, strokeDistance - dt * 70)
         let nearby =
             abs(cursor.x - position.x) < 290

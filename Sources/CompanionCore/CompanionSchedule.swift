@@ -39,7 +39,7 @@ public struct CompanionSchedule: Sendable {
 
     public static func endsFocus(_ action: PetAction) -> Bool {
         switch action {
-        case .pet, .treat, .saySomething: false
+        case .pet, .treat, .saySomething, .boop, .tickle: false
         default: true
         }
     }

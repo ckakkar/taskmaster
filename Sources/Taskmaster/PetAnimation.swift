@@ -27,6 +27,22 @@ final class PetAnimation {
 
     func land(speed: Double) { motion.land(speed: speed) }
 
+    func react(blink: Bool, squash: Double = 0) {
+        attention.react(blink: blink)
+        if squash != 0 { motion.settle(squash) }
+    }
+
+    /// Lower poses squash in; rising ones stretch up. Both spring back to rest.
+    func settle(from old: PetPose, to new: PetPose) {
+        let low: Set<PetPose> = [.sitting, .sleeping, .playBow, .mischievous]
+        switch (low.contains(old), low.contains(new)) {
+        case (false, true): motion.settle(new == .sleeping ? -1.2 : -1.9)
+        case (true, false): motion.settle(1.5)
+        case (true, true): motion.settle(-0.9)
+        case (false, false): motion.settle(0.6)
+        }
+    }
+
     /// The drawing that is fading in over `sprite` during a stride uses its own eye landmarks.
     func update(
         sprite: SKSpriteNode, frame: PetAtlas.Frame, engine: PetEngine, reducedMotion: Bool, blending: Bool = false
@@ -80,14 +96,14 @@ final class PetAnimation {
                 let dx =
                     Float(attention.gaze.x * 0.025) * headWeight
                     - (y - head.y) * Float(attention.headTilt) * headWeight
-                    + Float(tailWave) * tailWeight
+                    + Float(tailWave + attention.tailFlick * 0.03) * tailWeight
                     + Float(attention.earFlick * 0.022) * earWeight
                     + Float(stretch * 0.025) * headWeight
                     + Float(sin(t * 4) * 0.012) * pawWeight
                 let dy =
                     Float(attention.gaze.y * 0.018) * headWeight
                     + (x - head.x) * Float(attention.headTilt) * headWeight
-                    + Float(tailWave * 0.6) * tailWeight + tailStride * tailWeight
+                    + Float(tailWave * 0.6 + attention.tailFlick * 0.022) * tailWeight + tailStride * tailWeight
                     - Float(attention.earFlick * 0.014) * earWeight
                     + Float(attention.engagement * 0.008) * earWeight
                     - Float(stretch * 0.025) * headWeight

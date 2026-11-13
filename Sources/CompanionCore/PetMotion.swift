@@ -83,7 +83,12 @@ public struct PetMotion: Sendable {
 
     public mutating func advance(seconds: Double, engine: PetEngine, reducedMotion: Bool, strideLength: Double = 64) {
         let dt = min(0.1, max(0, seconds))
-        let walking = engine.state == .walking && !engine.isPaused
+        // A paused companion holds still, mid-stride included, and carries on from there when resumed.
+        if engine.isPaused {
+            lastPositionX = engine.position.x
+            return
+        }
+        let walking = engine.state == .walking
         movement.advance(to: walking ? 1 : 0, seconds: dt, response: 15)
         lean.advance(
             to: engine.state == .carried
@@ -108,5 +113,10 @@ public struct PetMotion: Sendable {
 
     public mutating func land(speed: Double) {
         squash.kick(-min(3.5, max(0, speed) / 200))
+    }
+
+    /// Squash (negative) or stretch (positive) as the body settles into a new pose.
+    public mutating func settle(_ amount: Double) {
+        squash.kick(amount.clamped(to: -3...3))
     }
 }

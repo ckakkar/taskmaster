@@ -10,6 +10,8 @@ final class PetScene: SKScene {
     let pet = SKSpriteNode()
     /// The next stride key, dissolving in over `pet` (a child, so it shares the flip, squash and lean).
     let strideBlend = SKSpriteNode()
+    /// The stride key `strideBlend` is showing, for hit-testing while it dissolves in.
+    var blendPose: PetPose?
     let shadow = SKShapeNode(ellipseOf: CGSize(width: 110, height: 15))
     let ball = SKShapeNode(circleOfRadius: 12)
     let ballStripe = SKShapeNode(circleOfRadius: 8)
@@ -41,6 +43,9 @@ final class PetScene: SKScene {
     // childNode(withName:) parses a search pattern on every call.
     weak var poseTransition: SKNode?
     weak var speechBubble: SKNode?
+    weak var speechTail: SKNode?
+    var nextSleepZ: Double = 0
+    let dizzyStars = SKNode()
     weak var note: SKNode?
 
     init(size: CGSize, atlas: PetAtlas, preview: Bool = false) {
@@ -135,6 +140,9 @@ final class PetScene: SKScene {
             label.zPosition = 6
             addChild(label)
         }
+        dizzyStars.zPosition = 6.5
+        dizzyStars.isHidden = true
+        addChild(dizzyStars)
         sleepLabel.text = "z  z  z"
         sleepLabel.fontColor = NSColor(calibratedRed: 0.49, green: 0.57, blue: 0.56, alpha: 0.8)
     }

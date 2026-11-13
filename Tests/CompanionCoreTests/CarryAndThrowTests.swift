@@ -63,3 +63,22 @@ private let room = Habitat(left: 100, right: 1_500, floor: 20, ceiling: 900)
     for _ in 0..<(60 * 31) { engine.tick(seconds: 1.0 / 60) }
     #expect(engine.toy == nil)
 }
+
+@Test func strokingOnTheDesktopEarnsHeartsDuringFocusToo() {
+    for focusing in [false, true] {
+        var engine = PetEngine(habitat: room, seed: 46)
+        engine.isFocusing = focusing
+        var hearts = 0
+        for frame in 0..<120 {
+            let x = engine.position.x - 20 + Double(frame % 20) * 2
+            engine.tick(
+                seconds: 1.0 / 60, cursor: Point(x: x, y: room.floor + 60), userIdle: 0, cursorContact: true)
+            hearts += engine.drainEvents().filter { if case .hearts = $0 { true } else { false } }.count
+        }
+        #expect(hearts >= 1)
+        if focusing {
+            for _ in 0..<300 { engine.tick(seconds: 1.0 / 60) }
+            #expect(engine.state == .sitting)
+        }
+    }
+}
