@@ -60,17 +60,22 @@ button) if you'd rather check yourself.
   </tr>
 </table>
 
-Each companion has ten painted poses and a soft procedural rig: planted footsteps, a breathing chest, a swishing
-tail, ear flicks, eyes that follow your cursor, and blinks. Miso is an original character; Toothless is a fan-made
+Each companion has ten painted poses and a soft procedural rig: it walks by stepping through its painted stride
+drawings with planted paws and a bob in its step, and poses blend into each other with a little squash and stretch.
+A breathing chest, a swishing tail, ear flicks, eyes that follow your cursor and blinks fill in the rest. Miso is an original character; Toothless is a fan-made
 take on the dragon from *How to Train Your Dragon*.
 
 ## Things to do together
 
 - **Pet, treat and play.** Stroke gently over the fur for hearts, offer a treat, or throw a ball and watch it get
   chased and batted around.
-- **Pick up and put down.** Drag your companion anywhere, let go, and it falls and lands with a little squash.
-- **A companion that notices you.** A nearby cursor gets a glance and a head tilt; a wiggling one is an invitation
-  to play. Step away for a while and it curls up for a nap.
+- **Boop, tickle, shake.** Click the nose for a boop (three in a row earns a reaction), scroll over the fur to
+  tickle, and shake your companion about while you carry it to leave it a little dizzy.
+- **Pick up and put down.** Drag your companion anywhere, let go, and it falls and lands with a little squash and a
+  puff of dust. Hold still before letting go for a gentle drop instead of a throw.
+- **A companion that notices you.** A nearby cursor gets a glance and a head tilt, and resting it on the fur gets a
+  look and a flick of the tail; a wiggling one is an invitation to play. Left alone it glances about, and if you
+  step away for a while it curls up for a nap.
 - **Hide and seek.** Every so often your companion slips off the edge of the screen and peeks back in. Pet them to
   say you found them, or start a round yourself from the menu or the room.
 - **Tiny games.** Offer a high five and click the raised paw. **Follow me** turns your cursor into a leader for a

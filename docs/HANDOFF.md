@@ -184,6 +184,31 @@ another app raised the idle baseline to 18–20% during the comparison, so treat
 the numbers as relative. The original build added about 31 points sitting and
 29 walking; the new build added about 12 and 8.
 
+## Animation and play — 13 November 2026
+
+Walking used to bend the standing drawing, so legs smeared and Toothless looked
+half-seated mid-stride. Both companions now step through their painted stride
+drawings (`PetAtlas.strideKeys`; Miso alternates her two profile strides because
+her standing drawing faces the viewer), timed by distance so a stride never
+outpaces the floor. Keys dissolve over the last fifth of each quarter (incoming
+fades in over the first half, outgoing out over the second through the eye
+shader's `u_fade`), line up at the eyes, and hold planted paws still by shearing
+the legs against the body's travel. Pose changes dissolve with squash/stretch;
+idle companions glance about and flick their tails; sleep drifts Zs; hard
+landings raise dust; speech bubbles pop with a tail; notes drop in. New play:
+boop the nose (head hit-test), scroll to tickle (desktop only, so the room keeps
+scrolling), shake while carried for dizziness, rest the pointer to be noticed.
+
+Verification: `--debug-filmstrip` renders every scenario off screen with a
+simulated clock; contact sheets were reviewed for both avatars. Codex QA ran
+three rounds (audit, walk, moves) with native probes and off-screen raster
+measurements: six baseline bugs and ten new findings were reproduced and fixed,
+with its core repros adopted into the suite (102 tests). Optimized CPU against
+072fc89 at 30 s: walking Miso 9.83→8.00 %, Toothless 7.76→6.60 %; sitting Miso
+6.93→6.40 %, Toothless 6.70→6.70 %. **Not** checked by a person: physical
+trackpad scrolling over the pet (QA could not post OS events), real shakes and
+boops on the desktop, and WindowServer routing of scrolls to the app underneath.
+
 ## Settings, hide and seek and review fixes — 29 October 2026
 
 Inspired by Rebel Goose's polish, the scattered customization pages and the
