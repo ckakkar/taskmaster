@@ -184,6 +184,29 @@ another app raised the idle baseline to 18–20% during the comparison, so treat
 the numbers as relative. The original build added about 31 points sitting and
 29 walking; the new build added about 12 and 8.
 
+## Smoothness — 14 November 2026
+
+The owner found the motion low-fps. Two causes, both fixed: the desktop
+companion was updated from a 60 Hz timer that beat against the display (frames
+with two updates or none), and walking had only three or four drawings per
+stride. `PetScene.update` now drives `DesktopController.tick` once per drawn
+frame, with a timer as the clock while hidden and as a 0.5 s watchdog
+otherwise; services run on the wall clock every 0.2 s. Strides are shorter
+(`WalkCycle.strideRatio` 0.2) with longer blends. `PetAtlas` loads optional
+`<Title>Walk` sheets (4–16 drawings; a damaged one falls back and fails the
+self-check by name): Miso has eight new painted drawings (Codex, image tool),
+Toothless twelve computed from his own art by `scripts/make-inbetweens.swift`
+(the image tool declined new Toothless frames). Each frame owns its pixels, so
+decoded sheets are released. Toothless's wing now beats in flight.
+
+Codex QA rounds 4–6 reproduced and closed: dark filled-button contrast, an ear
+pinch in the wing beat, a sheared-paw click fringe, the damaged-sheet startup
+failure, stale focus under the watchdog, and a baked ghost paw. Optimized
+Miso CPU vs 072fc89 (30 s, both orders): sitting 6.20→6.43 % and 6.30→6.40 %
+(60 s: +0.2 / −0.1, within noise); walking 9.90→9.13 % and 9.87→9.30 %; RSS
+lower in every pair. Released as 0.1.40–0.1.44, each verified (EdDSA, code
+signature, universal, self-check with both walk cycles).
+
 ## Animation and play — 13 November 2026
 
 Walking used to bend the standing drawing, so legs smeared and Toothless looked
