@@ -8,21 +8,32 @@ extension PetScene {
         let localPoint = pet.convert(point, from: self)
         let x = localPoint.x / pet.size.width + 0.5
         let y = localPoint.y / pet.size.height
-        if atlas.frame(for: pose).contains(x: Self.unshear(x, y, footShift), y: y) { return true }
+        let frame = atlas.frame(for: pose)
+        // Sheared legs get a point and a half of slack either side for their anti-aliased outline.
+        let slack = footShift == 0 ? 0 : 1.5 / pet.size.width
+        let unsheared = Self.unshear(x, y, footShift)
+        if [0, -slack, slack].contains(where: { frame.contains(x: unsheared + $0, y: y) }) { return true }
         // Mid-stride, the next drawing is already partly visible: its paws count as fur too.
         guard let blendPose, !strideBlend.isHidden, strideBlend.alpha > 0.2, strideBlend.size.width > 0 else {
             return false
         }
         let blendPoint = strideBlend.convert(point, from: self)
         let blendY = blendPoint.y / strideBlend.size.height
-        return atlas.frame(for: blendPose).contains(
-            x: Self.unshear(blendPoint.x / strideBlend.size.width + 0.5, blendY, incomingFootShift), y: blendY)
+        let blendX = Self.unshear(blendPoint.x / strideBlend.size.width + 0.5, blendY, incomingFootShift)
+        let blendSlack = incomingFootShift == 0 ? 0 : 1.5 / strideBlend.size.width
+        return [0, -blendSlack, blendSlack].contains {
+            atlas.frame(for: blendPose).contains(x: blendX + $0, y: blendY)
+        }
     }
 
     /// Undoes the walking rig's leg shear (see `PetAnimation`), mapping a point on screen back into the drawing.
+    /// The warp grid has 12 rows and the drawing interpolates linearly between them, so the inverse does too.
     static func unshear(_ x: Double, _ y: Double, _ shift: Double) -> Double {
-        let body = min(1, max(0, (y - 0.1) / 0.3))
-        return x - shift * (1 - body)
+        func legs(_ height: Double) -> Double { 1 - min(1, max(0, (height - 0.1) / 0.3)) }
+        let row = min(11.999, max(0, y * 12)).rounded(.down)
+        let fraction = min(1, max(0, y * 12 - row))
+        let weight = legs(row / 12) + (legs((row + 1) / 12) - legs(row / 12)) * fraction
+        return x - shift * weight
     }
 
     /// Whether a point on the fur is on the head (eyes to snout), where a click is a boop rather than a pat.

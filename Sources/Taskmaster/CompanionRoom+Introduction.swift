@@ -80,7 +80,7 @@ extension CompanionRoom {
                         ? "Click the raised paw. Tiny teamwork."
                         : model.state == .flying
                             ? "Flying passes clicks through. Land gently to interact."
-                            : "Move your cursor close. Stroke gently."
+                            : "Stroke gently, or boop the nose."
                 ).font(.system(size: 12))
             }
             .foregroundStyle(Palette.secondary)
