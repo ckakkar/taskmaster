@@ -35,6 +35,7 @@ enum TaskmasterApplication {
                         else { throw PetAtlas.ArtError.invalidFrame }
                         print("\(pose): \(frame.width)×\(frame.height), \(frame.eyes.count) animated eyes")
                     }
+                    if let problem = atlas.walkSheetProblem { throw SelfCheckError(problem) }
                     print("walk cycle: \(atlas.strideKeys.count) drawings")
                 }
                 print(
@@ -52,4 +53,9 @@ enum TaskmasterApplication {
         application.delegate = delegate
         withExtendedLifetime(delegate) { application.run() }
     }
+}
+
+private struct SelfCheckError: Error, CustomStringConvertible {
+    let description: String
+    init(_ description: String) { self.description = description }
 }

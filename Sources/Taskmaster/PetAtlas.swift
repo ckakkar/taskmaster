@@ -164,7 +164,16 @@ final class PetAtlas {
                 throw ArtError.missingAtlas
             }
         }
-        if let cycle = try Self.loadWalkCycle(avatar: avatar, from: resources, reference: frames[.walkA]) {
+        // The walk sheet is an enhancement: a damaged one falls back to the atlas's own walk (and fails the
+        // self-check, so a release never ships it) rather than keeping the companion from appearing.
+        var cycle: [PetPose: Frame]?
+        do {
+            cycle = try Self.loadWalkCycle(avatar: avatar, from: resources, reference: frames[.walkA])
+        } catch {
+            walkSheetProblem = "\(avatar.title)Walk could not be loaded: \(error)"
+            FileHandle.standardError.write(Data("\(walkSheetProblem ?? "")\n".utf8))
+        }
+        if let cycle {
             frames.merge(cycle) { _, new in new }
             strideKeys = PetPose.walkCycle.filter { cycle[$0] != nil }
         } else {
@@ -185,6 +194,8 @@ final class PetAtlas {
     /// otherwise contact A, passing, contact B, passing from the atlas (Toothless's standing drawing is in
     /// profile and makes a natural passing pose; Miso's faces the viewer, so she alternates her two strides).
     private(set) var strideKeys: [PetPose] = []
+    /// Why a walk sheet that is present couldn't be used; nil when it loaded or there is none.
+    private(set) var walkSheetProblem: String?
 
     /// Points to shift a stride key so its head lines up with the first key's, keeping the head steady
     /// through the stride. (Lining up with a pose outside the stride, like Miso's front-facing standing
