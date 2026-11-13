@@ -113,6 +113,10 @@ struct SettingsView: View {
             case .advanced: AdvancedPane(model: model)
             }
         }
+        // Switching panes crossfades rather than cutting.
+        .id(model.settingsPane)
+        .transition(.opacity)
+        .animation(.easeInOut(duration: 0.18), value: model.settingsPane)
     }
 }
 

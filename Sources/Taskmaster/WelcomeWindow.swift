@@ -21,7 +21,8 @@ final class WelcomeWindowController {
             window.titleVisibility = .hidden
             window.isMovableByWindowBackground = true
             window.isReleasedWhenClosed = false
-            window.backgroundColor = NSColor(calibratedRed: 0.985, green: 0.973, blue: 0.95, alpha: 1)
+            window.backgroundColor = Palette.paperBackground
+            window.animationBehavior = .alertPanel
             window.contentViewController = NSHostingController(
                 rootView: WelcomeView(
                     model: model,
@@ -35,6 +36,8 @@ final class WelcomeWindowController {
         }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+        // No focus ring on the login switch when the window opens; Tab still reaches every control.
+        DispatchQueue.main.async { [weak self] in self?.window?.makeFirstResponder(nil) }
     }
 
     private func finish() {
@@ -66,19 +69,23 @@ struct WelcomeView: View {
             Text("Say hello to \(name).")
                 .font(.system(size: 28, design: .serif))
                 .padding(.top, 14)
+                .entrance(appeared, delay: 0.12)
             Text("A little company. A little mischief.")
                 .foregroundStyle(Palette.secondary)
                 .padding(.top, 4)
+                .entrance(appeared, delay: 0.18)
 
             VStack(spacing: 10) {
                 step(
                     symbol: "hand.wave.fill", title: "Right there on your desktop",
-                    detail: "Click to pet, drag to pick up, right-click for games."
+                    detail: "Click to pet or boop the nose, drag to pick up, scroll to tickle, right-click for games."
                 ) { EmptyView() }
+                .entrance(appeared, delay: 0.26)
                 step(
                     symbol: "pawprint.fill", title: "The paw in your menu bar",
                     detail: "Games, settings and a pause. Closing a window never sends \(name) away."
                 ) { EmptyView() }
+                .entrance(appeared, delay: 0.33)
                 step(
                     symbol: "power", title: "Open at login",
                     detail: "So \(name) is there whenever you sign in."
@@ -95,6 +102,7 @@ struct WelcomeView: View {
                     .toggleStyle(.switch)
                     .labelsHidden()
                 }
+                .entrance(appeared, delay: 0.40)
             }
             .padding(.top, 26)
             .padding(.horizontal, 30)
@@ -116,12 +124,12 @@ struct WelcomeView: View {
             }
             .padding(.horizontal, 30)
             .padding(.bottom, 28)
+            .entrance(appeared, delay: 0.48)
         }
         .frame(width: 480, height: 600)
         .foregroundStyle(Palette.ink)
         .background(Palette.paper)
         .tint(Palette.orange)
-        .preferredColorScheme(.light)
         .onAppear {
             let reduced = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
             withAnimation(reduced ? .easeOut(duration: 0.2) : .spring(response: 0.6, dampingFraction: 0.7).delay(0.1)) {
@@ -148,8 +156,31 @@ struct WelcomeView: View {
             accessory()
         }
         .padding(12)
-        .background(.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(Palette.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Palette.line.opacity(0.7), lineWidth: 0.7))
+    }
+}
+
+extension View {
+    /// Rises gently into place after `delay` once `shown` turns true; with Reduce Motion it only fades.
+    func entrance(_ shown: Bool, delay: Double) -> some View {
+        modifier(Entrance(shown: shown, delay: delay))
+    }
+}
+
+private struct Entrance: ViewModifier {
+    let shown: Bool
+    let delay: Double
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .offset(y: shown || reduceMotion ? 0 : 12)
+            .animation(
+                reduceMotion
+                    ? .easeOut(duration: 0.2).delay(delay * 0.3)
+                    : .spring(response: 0.55, dampingFraction: 0.8).delay(delay), value: shown)
     }
 }

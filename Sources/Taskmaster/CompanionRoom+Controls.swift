@@ -29,6 +29,8 @@ extension CompanionRoom {
                     Text("\(Int(model.preferences.mischief * 100))%")
                         .font(.system(size: 11, design: .monospaced))
                         .foregroundStyle(Palette.secondary)
+                        .contentTransition(.numericText(value: model.preferences.mischief))
+                        .animation(.snappy(duration: 0.2), value: Int(model.preferences.mischief * 100))
                 }
                 Slider(value: $model.preferences.mischief, in: 0...1)
                     .accessibilityLabel("Mischief level")
@@ -51,6 +53,8 @@ extension CompanionRoom {
                     Text("\(model.interactions) little moment\(model.interactions == 1 ? "" : "s")")
                         .font(.system(size: 11))
                         .foregroundStyle(Palette.secondary)
+                        .contentTransition(.numericText(value: Double(model.interactions)))
+                        .animation(.snappy(duration: 0.25), value: model.interactions)
                 }
             }
             HStack(spacing: 9) {

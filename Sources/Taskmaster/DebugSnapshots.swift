@@ -16,6 +16,11 @@
         }
 
         static func run(into folder: URL, model: AppModel, showRoom: @escaping () -> Void) {
+            // `--debug-appearance dark|light` reviews either look without changing the system setting.
+            let arguments = CommandLine.arguments
+            if let index = arguments.firstIndex(of: "--debug-appearance"), index + 1 < arguments.count {
+                NSApp.appearance = NSAppearance(named: arguments[index + 1] == "dark" ? .darkAqua : .aqua)
+            }
             Task { @MainActor in
                 try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
                 func settle() async { try? await Task.sleep(for: .seconds(1.2)) }

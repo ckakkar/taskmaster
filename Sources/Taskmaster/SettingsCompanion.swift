@@ -20,8 +20,7 @@ struct CompanionPane: View {
                     .frame(height: 210)
                     .background(
                         LinearGradient(
-                            colors: [Color(red: 0.95, green: 0.91, blue: 0.84), Palette.paper], startPoint: .top,
-                            endPoint: .bottom),
+                            colors: [Palette.stageTop, Palette.stageBottom], startPoint: .top, endPoint: .bottom),
                         in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                     )
                     .accessibilityLabel("Live preview of \(name)")
@@ -101,7 +100,8 @@ private struct CharacterCard: View {
             )
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SoftPressStyle(cornerRadius: 12))
+        .animation(.spring(response: 0.3, dampingFraction: 0.75), value: selected)
         .accessibilityLabel("Choose \(avatar.title)")
         .accessibilityAddTraits(selected ? .isSelected : [])
     }

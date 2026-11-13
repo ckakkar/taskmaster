@@ -21,7 +21,7 @@ watches your cursor, naps while you're away, brings you memes and keeps you comp
 
 <br>
 
-<img src="docs/media/room.png" width="760" alt="The companion room: personalities, little rituals, a focus timer and a live preview of your companion">
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/media/room-dark.png"><img src="docs/media/room.png" width="760" alt="The companion room: personalities, little rituals, a focus timer and a live preview of your companion"></picture>
 
 </div>
 
@@ -93,7 +93,8 @@ take on the dragon from *How to Train Your Dragon*.
 
 ## Make it yours
 
-Settings has a page for each part of your companion. **Companion**: Miso or Toothless, a name, a size, Miso's coat
+The companion room, the welcome and Settings follow your Mac's Light or Dark appearance; in the dark the room turns
+into a warm, lamplit evening. Settings has a page for each part of your companion. **Companion**: Miso or Toothless, a name, a size, Miso's coat
 tones and a bandana, bow or bell, with a live preview. **Behaviour**: the mood, the mischief, and a switch for
 everything they do on their own (wandering, peeking, naps, notes, curiosity, flights). **Sayings**: how chatty,
 bubble colours, and your own lines (use `{name}` for theirs) or cozy and chaotic packs. **Memes**: delivery timing

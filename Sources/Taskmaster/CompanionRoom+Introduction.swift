@@ -5,6 +5,18 @@ import SwiftUI
 
 @MainActor
 extension CompanionRoom {
+    /// What the companion is up to, in the pill under the stage.
+    var statusLine: String {
+        model.isPaused
+            ? "Just being here"
+            : model.focusActive
+                ? "Quiet company · \(model.focusLabel)"
+                : model.isStealingCursor
+                    ? "A very tiny crime in progress"
+                    : model.deliveryPhase?.description
+                        ?? (model.isFollowingCursor ? "Following your little arrow" : model.state.description)
+    }
+
     var introduction: some View {
         VStack(alignment: .leading, spacing: 15) {
             VStack(alignment: .leading, spacing: 3) {
@@ -19,9 +31,8 @@ extension CompanionRoom {
                 RoundedRectangle(cornerRadius: 25)
                     .fill(
                         LinearGradient(
-                            colors: [
-                                Color(red: 0.96, green: 0.91, blue: 0.83), Color(red: 0.97, green: 0.94, blue: 0.88),
-                            ], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            colors: [Palette.stageTop, Palette.stageBottom], startPoint: .topLeading,
+                            endPoint: .bottomTrailing))
                 RoomBackdrop()
                 VStack {
                     HStack {
@@ -47,19 +58,12 @@ extension CompanionRoom {
                 HStack(spacing: 5) {
                     Image(systemName: model.state == .sleeping ? "moon.zzz.fill" : "heart.fill")
                         .font(.system(size: 10))
-                    Text(
-                        model.isPaused
-                            ? "Just being here"
-                            : model.focusActive
-                                ? "Quiet company · \(model.focusLabel)"
-                                : model.isStealingCursor
-                                    ? "A very tiny crime in progress"
-                                    : model.deliveryPhase?.description
-                                        ?? (model.isFollowingCursor
-                                            ? "Following your little arrow" : model.state.description)
-                    )
-                    .font(.system(size: 11, weight: .medium))
+                        .contentTransition(.symbolEffect(.replace))
+                    Text(statusLine)
+                        .font(.system(size: 11, weight: .medium))
+                        .contentTransition(.opacity)
                 }
+                .animation(.easeInOut(duration: 0.25), value: statusLine)
                 .foregroundStyle(Palette.secondary)
                 .padding(.horizontal, 11)
                 .padding(.vertical, 7)
@@ -67,7 +71,7 @@ extension CompanionRoom {
                 .padding(.bottom, 15)
             }
             .frame(height: 302)
-            .overlay(RoundedRectangle(cornerRadius: 25).stroke(.white.opacity(0.8), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 25).stroke(Palette.rim, lineWidth: 1))
 
             HStack(spacing: 7) {
                 Image(systemName: "hand.draw").font(.system(size: 13))
@@ -119,7 +123,7 @@ extension CompanionRoom {
                 }
             }
             .padding(14)
-            .background(.white.opacity(0.55), in: RoundedRectangle(cornerRadius: 15))
+            .background(Palette.card, in: RoundedRectangle(cornerRadius: 15))
             .overlay(RoundedRectangle(cornerRadius: 15).stroke(Palette.line.opacity(0.6), lineWidth: 0.7))
         }
     }

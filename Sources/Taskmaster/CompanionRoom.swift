@@ -28,7 +28,6 @@ struct CompanionRoom: View {
         .background(Palette.paper)
         .foregroundStyle(Palette.ink)
         .tint(Palette.orange)
-        .preferredColorScheme(.light)
     }
 }
 

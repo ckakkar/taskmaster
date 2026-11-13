@@ -21,8 +21,11 @@ extension CompanionRoom {
                         ? "Taking a little pause" : model.isVisible ? "At home on your desktop" : "Tucked away for now"
                 )
                 .font(.system(size: 11, weight: .medium))
+                .contentTransition(.opacity)
             }
             .foregroundStyle(Palette.secondary)
+            .animation(.easeInOut(duration: 0.25), value: model.isPaused)
+            .animation(.easeInOut(duration: 0.25), value: model.isVisible)
             if let version = model.availableUpdate {
                 Button {
                     model.updater.checkForUpdates()
@@ -32,7 +35,8 @@ extension CompanionRoom {
                         .foregroundStyle(Palette.paper)
                         .background(Palette.orange, in: Capsule())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SoftPressStyle())
+                .transition(.scale(scale: 0.85).combined(with: .opacity))
                 .help("See what’s new and install Taskmaster \(version)")
             }
             Button {
@@ -40,19 +44,19 @@ extension CompanionRoom {
             } label: {
                 Label("Make it yours", systemImage: "sparkles")
                     .font(.system(size: 11, weight: .medium)).padding(.horizontal, 11).padding(.vertical, 8)
-                    .background(.white.opacity(0.7), in: Capsule())
+                    .background(Palette.card, in: Capsule())
                     .overlay(Capsule().stroke(Palette.line.opacity(0.7), lineWidth: 0.7))
-            }.buttonStyle(.plain)
+            }.buttonStyle(SoftPressStyle())
             Button {
                 model.openSettings(.general)
             } label: {
                 Image(systemName: "slider.horizontal.3")
                     .font(.system(size: 15))
                     .frame(width: 34, height: 32)
-                    .background(.white.opacity(0.65), in: RoundedRectangle(cornerRadius: 10))
+                    .background(Palette.card, in: RoundedRectangle(cornerRadius: 10))
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.line.opacity(0.7), lineWidth: 0.7))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SoftPressStyle())
             .help("Settings")
             .accessibilityLabel("Settings")
         }

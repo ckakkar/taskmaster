@@ -16,11 +16,11 @@ struct RoomBackdrop: View {
                 }
             }
             Circle()
-                .fill(Color(red: 0.96, green: 0.82, blue: 0.60).opacity(0.45))
+                .fill(Palette.sun)
                 .frame(width: 180, height: 180)
                 .position(x: proxy.size.width * 0.57, y: 135)
             Ellipse()
-                .fill(Color.white.opacity(0.32))
+                .fill(Palette.floorGlow)
                 .frame(width: proxy.size.width * 0.8, height: 80)
                 .position(x: proxy.size.width * 0.5, y: proxy.size.height - 40)
         }

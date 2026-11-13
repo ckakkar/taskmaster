@@ -38,8 +38,10 @@ extension CompanionRoom {
                     .padding(.vertical, 9)
                     .background(Palette.ink, in: Capsule())
                     .foregroundStyle(Palette.paper)
+                    .contentTransition(.symbolEffect(.replace))
+                    .animation(.easeInOut(duration: 0.2), value: model.isPaused)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SoftPressStyle())
                 .padding(.leading, 12)
             }
         }

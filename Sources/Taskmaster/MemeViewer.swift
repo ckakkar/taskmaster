@@ -27,12 +27,21 @@ final class MemeViewer {
     }
 
     private func makeWindow() -> NSWindow {
-        let window = NSWindow(
+        let window = ViewerWindow(
             contentRect: NSRect(x: 0, y: 0, width: 640, height: 460),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 240, height: 180)
+        // Opens with the zoom of a document window and sits on a quiet dark mat, like Quick Look.
+        window.animationBehavior = .documentWindow
+        window.backgroundColor = NSColor(calibratedWhite: 0.09, alpha: 1)
+        window.titlebarAppearsTransparent = true
         self.window = window
         return window
     }
+}
+
+/// Escape closes the viewer, as it does in Quick Look.
+private final class ViewerWindow: NSWindow {
+    override func cancelOperation(_ sender: Any?) { performClose(sender) }
 }

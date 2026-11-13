@@ -199,6 +199,15 @@ landings raise dust; speech bubbles pop with a tail; notes drop in. New play:
 boop the nose (head hit-test), scroll to tickle (desktop only, so the room keeps
 scrolling), shake while carried for dizziness, rest the pointer to be noticed.
 
+The windows follow the system appearance now: `Palette` colours are adaptive
+(a lamplit evening palette in Dark Mode) for the room, welcome and Settings
+stage. Buttons and cards share `SoftPressStyle` (press spring, hover lift, plain
+fades with Reduce Motion), ritual icons bounce, counters and status lines
+animate, Settings panes crossfade, the welcome rises in step by step, and the
+meme viewer zooms open on a dark mat and closes with Escape. Checked with
+`--debug-snapshots --debug-appearance dark|light`; hover and press springs were
+not exercised by a person.
+
 Verification: `--debug-filmstrip` renders every scenario off screen with a
 simulated clock; contact sheets were reviewed for both avatars. Codex QA ran
 three rounds (audit, walk, moves) with native probes and off-screen raster
@@ -298,8 +307,7 @@ not certified through an end-to-end hardware session.
   Sparkle's window (0.1.25 to the next release) still needs a person to click
   Install to confirm the whole path.
 
-- Not done yet: a dark appearance for the room and welcome (Settings follows
-  the system), search, sorting and multi-select in the meme stash, profiling
+- Not done yet: search, sorting and multi-select in the meme stash, profiling
   character-atlas loading on the main actor, and VoiceOver for the companion
   and its props on the desktop (Settings and the room are standard controls).
 
