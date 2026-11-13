@@ -227,11 +227,13 @@
                     try write(image, to: output.appendingPathComponent("full.png"))
                 }
                 // A box around the companion (the whole sky for flights), floor 30 points above its bottom edge.
-                let cropWidth = scenario.headroom > 0 ? max(box.width, 380) : box.width
-                let cropHeight = scenario.flying ? sceneSize.height - 20 : box.height + scenario.headroom
+                let sceneHeight = Double(sceneSize.height)
+                let boxWidth = Double(box.width)
+                let cropWidth: Double = scenario.headroom > 0 ? max(boxWidth, 380) : boxWidth
+                let cropHeight: Double = scenario.flying ? sceneHeight - 20 : Double(box.height) + scenario.headroom
+                let top: Double = sceneHeight - habitat.floor + 30 - cropHeight
                 let crop = CGRect(
-                    x: (scene.petLocation.x - cropWidth / 2) * renderScale,
-                    y: (sceneSize.height - Double(habitat.floor) + 30 - cropHeight) * renderScale,
+                    x: (Double(scene.petLocation.x) - cropWidth / 2) * renderScale, y: top * renderScale,
                     width: cropWidth * renderScale, height: cropHeight * renderScale
                 ).intersection(CGRect(x: 0, y: 0, width: width, height: height))
                 if let cropped = image.cropping(to: crop.integral) {

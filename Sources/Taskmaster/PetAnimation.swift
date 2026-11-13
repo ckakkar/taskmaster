@@ -56,6 +56,21 @@ final class PetAnimation {
         sprite.warpGeometry = reducedMotion ? nil : warp(for: frame, engine: engine, footShift: Float(footShift))
     }
 
+    /// The wing's angle (radians, positive = downstroke) in this moment's beat. The downstroke takes 40% of
+    /// the beat and the recovery the rest, which reads as effort rather than a metronome.
+    func wingAngle(engine: PetEngine) -> Float {
+        let flying = engine.aerialRoute != nil
+        let rate = flying ? 2.3 : 3.4
+        let phase = (attention.time * rate).truncatingRemainder(dividingBy: 1)
+        let stroke = phase < 0.4 ? sin(phase / 0.4 * .pi / 2) : cos((phase - 0.4) / 0.6 * .pi / 2)
+        return Float((stroke * 2 - 1) * (flying ? 0.42 : 0.16))
+    }
+
+    private func smooth(_ edge0: Float, _ edge1: Float, _ x: Float) -> Float {
+        let t = min(1, max(0, (x - edge0) / (edge1 - edge0)))
+        return t * t * (3 - 2 * t)
+    }
+
     private func warp(for frame: PetAtlas.Frame, engine: PetEngine, footShift: Float) -> SKWarpGeometryGrid {
         let head =
             frame.eyes.isEmpty
@@ -74,7 +89,14 @@ final class PetAnimation {
         let bodyBob = Float(WalkCycle.bob(phase: stride)) * 0.011 * walking
         let headBob = Float(-WalkCycle.bob(phase: stride - 0.7)) * 0.006 * walking
         let stretch = engine.state == .stretching ? sin(min(1, engine.stateAge / 3.2) * .pi) : 0
-        let flying = engine.avatar == .toothless && engine.aerialRoute != nil
+        // Toothless's wing (in the airborne drawing, rooted at the shoulder) beats around its root: briskly in
+        // flight, a nervous flutter while carried or falling.
+        let airborne =
+            engine.avatar == .toothless && frame.eyes.count == 2
+            && (engine.aerialRoute != nil || engine.state == .carried || engine.state == .falling)
+        let flap = airborne ? wingAngle(engine: engine) : 0
+        let root = SIMD2<Float>(0.51, 0.70)
+        let aspect = Float(frame.height) / Float(max(1, frame.width))
         var source: [SIMD2<Float>] = []
         var destination: [SIMD2<Float>] = []
         source.reserveCapacity(325)
@@ -89,7 +111,19 @@ final class PetAnimation {
                 let earWeight = max(0, (y - head.y - 0.12) * 5) * headWeight
                 // Paws stay planted; everything above them rides the stride.
                 let body = min(1, max(0, (y - 0.1) / 0.3))
-                let wing = flying ? sin(t * 8) * 0.055 * Double(max(0, 1 - x * 1.7)) * Double(max(0, y - 0.2)) : 0
+                var wingX: Float = 0
+                var wingY: Float = 0
+                if flap != 0 {
+                    // Only the membrane above the back: fades out toward the shoulder and the spine.
+                    let mask = smooth(0.58, 0.68, y) * smooth(0.6, 0.48, x)
+                    let reach = SIMD2((x - root.x), (y - root.y) * aspect)
+                    let bend = min(1, simd_length(reach) / 0.18)
+                    let angle = flap * mask * bend
+                    let turned = SIMD2(
+                        reach.x * cos(angle) - reach.y * sin(angle), reach.x * sin(angle) + reach.y * cos(angle))
+                    wingX = turned.x - reach.x
+                    wingY = (turned.y - reach.y) / aspect
+                }
                 let pawWeight: Float
                 if engine.state == .highFive, let paw = frame.paw {
                     pawWeight = exp(-pow((x - paw.x) / 0.25, 2) - pow((y - paw.y) / 0.25, 2))
@@ -102,7 +136,7 @@ final class PetAnimation {
                     + Float(tailWave + attention.tailFlick * 0.03) * tailWeight
                     + Float(attention.earFlick * 0.022) * earWeight
                     + Float(stretch * 0.025) * headWeight
-                    + Float(sin(t * 4) * 0.012) * pawWeight + footShift * (1 - body)
+                    + Float(sin(t * 4) * 0.012) * pawWeight + footShift * (1 - body) + wingX
                 let dy =
                     Float(attention.gaze.y * 0.018) * headWeight
                     + (x - head.x) * Float(attention.headTilt) * headWeight
@@ -111,7 +145,7 @@ final class PetAnimation {
                     + Float(attention.engagement * 0.008) * earWeight
                     - Float(stretch * 0.025) * headWeight
                     + Float(cos(t * 4) * 0.008) * pawWeight
-                    + bodyBob * body + headBob * headWeight + Float(wing)
+                    + bodyBob * body + headBob * headWeight + wingY
                 destination.append(SIMD2(x + dx, y + dy))
             }
         }

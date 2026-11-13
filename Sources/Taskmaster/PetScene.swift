@@ -12,6 +12,10 @@ final class PetScene: SKScene {
     let strideBlend = SKSpriteNode()
     /// The stride key `strideBlend` is showing, for hit-testing while it dissolves in.
     var blendPose: PetPose?
+    /// How far the painted legs of each drawing are sheared this frame (fractions of its width), so clicks on
+    /// a planted paw still land on fur.
+    var footShift: Double = 0
+    var incomingFootShift: Double = 0
     let shadow = SKShapeNode(ellipseOf: CGSize(width: 110, height: 15))
     let ball = SKShapeNode(circleOfRadius: 12)
     let ballStripe = SKShapeNode(circleOfRadius: 8)

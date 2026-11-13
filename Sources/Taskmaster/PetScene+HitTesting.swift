@@ -8,14 +8,21 @@ extension PetScene {
         let localPoint = pet.convert(point, from: self)
         let x = localPoint.x / pet.size.width + 0.5
         let y = localPoint.y / pet.size.height
-        if atlas.frame(for: pose).contains(x: x, y: y) { return true }
+        if atlas.frame(for: pose).contains(x: Self.unshear(x, y, footShift), y: y) { return true }
         // Mid-stride, the next drawing is already partly visible: its paws count as fur too.
         guard let blendPose, !strideBlend.isHidden, strideBlend.alpha > 0.2, strideBlend.size.width > 0 else {
             return false
         }
         let blendPoint = strideBlend.convert(point, from: self)
+        let blendY = blendPoint.y / strideBlend.size.height
         return atlas.frame(for: blendPose).contains(
-            x: blendPoint.x / strideBlend.size.width + 0.5, y: blendPoint.y / strideBlend.size.height)
+            x: Self.unshear(blendPoint.x / strideBlend.size.width + 0.5, blendY, incomingFootShift), y: blendY)
+    }
+
+    /// Undoes the walking rig's leg shear (see `PetAnimation`), mapping a point on screen back into the drawing.
+    static func unshear(_ x: Double, _ y: Double, _ shift: Double) -> Double {
+        let body = min(1, max(0, (y - 0.1) / 0.3))
+        return x - shift * (1 - body)
     }
 
     /// Whether a point on the fur is on the head (eyes to snout), where a click is a boop rather than a pat.

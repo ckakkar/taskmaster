@@ -46,9 +46,10 @@ extension PetScene {
         if isPreview, engine.aerialRoute != nil {
             let x = (engine.position.x - engine.habitat.left) / max(1, engine.habitat.right - engine.habitat.left)
             let y = (engine.position.y - engine.habitat.floor) / max(1, engine.habitat.ceiling - engine.habitat.floor)
-            // Reserve the whole silhouette, including its gentle banking rotation.
+            // Reserve the whole silhouette, including its gentle banking rotation and a wingtip at the top of
+            // its upstroke.
             let inset = pet.size.width * 0.53 + pet.size.height * 0.18 + 12
-            let top = pet.size.height * 1.03 + pet.size.width * 0.1 + 12
+            let top = pet.size.height * 1.1 + pet.size.width * 0.1 + 12
             ground = CGPoint(
                 x: inset + x * max(0, size.width - 2 * inset),
                 y: 36 + y * max(0, size.height - top - 36))
@@ -81,6 +82,11 @@ extension PetScene {
         var point = ground
         if engine.aerialRoute != nil, !reducedMotion {
             pet.zRotation = (engine.velocity.y * (facingRight ? 1 : -1) * 0.0007).clamped(to: -0.16...0.16)
+            // Each downstroke lifts the body a little; the recovery lets it sink back. The room's preview
+            // already fits the banking dragon edge to edge, so it skips the bob.
+            if engine.avatar == .toothless, !isPreview {
+                point.y += Double(animation.wingAngle(engine: engine)) * 7 * preferences.size
+            }
         }
         if !reducedMotion, !engine.isPaused {
             // A tickle is a quick wriggle that fades out; dizziness a slow, woozy sway. Pause holds both still.
@@ -109,7 +115,8 @@ extension PetScene {
         var wardrobeFrame = frame
         // Painted paws on the floor hold their place while a drawing is shown (the legs shear back as the body
         // travels), so feet don't skate between drawings. The room's preview walks on the spot, so it skips this.
-        let travel = isPreview || stride == nil ? 0 : strideLength / 4 * movement / max(1, pet.size.width)
+        let petWidth = Double(pet.size.width)
+        let travel: Double = isPreview || stride == nil ? 0 : strideLength / 4 * movement / max(1, petWidth)
         var feet = 0.0
         var incomingFeet = 0.0
         if let stride {
@@ -128,6 +135,8 @@ extension PetScene {
             incomingFeet =
                 WalkCycle.footHold(within: (stride.within - 1) / Double(nextLength)) * travel * Double(nextLength)
         }
+        footShift = reducedMotion ? 0 : feet
+        incomingFootShift = 0
         animation.update(
             sprite: pet, frame: frame, engine: engine, reducedMotion: reducedMotion, opacity: outgoing, footShift: feet)
         if let stride, dissolving {
@@ -138,6 +147,8 @@ extension PetScene {
                 strideBlend.name = "\(nextPose.rawValue)-\(coat.rawValue)"
             }
             strideBlend.size = CGSize(width: Double(next.width) * scale, height: Double(next.height) * scale)
+            // The incoming drawing's own width, so its shear matches the same distance on screen.
+            incomingFootShift = reducedMotion ? 0 : incomingFeet * petWidth / max(1, Double(next.width) * scale)
             let offset = atlas.strideShift(nextPose, scale: scale) - strideShift
             strideBlend.position = CGPoint(x: offset, y: 0)
             strideBlend.alpha = min(1, stride.mix * 2)
@@ -145,7 +156,7 @@ extension PetScene {
             blendPose = nextPose
             animation.update(
                 sprite: strideBlend, frame: next, engine: engine, reducedMotion: reducedMotion, blending: true,
-                footShift: incomingFeet * pet.size.width / max(1, strideBlend.size.width))
+                footShift: incomingFootShift)
             wardrobeFrame = PetScene.neckBlend(from: frame, to: next, offset: offset / scale, mix: stride.mix)
         } else {
             strideBlend.isHidden = true
@@ -194,7 +205,8 @@ extension PetScene {
         sleepLabel.isHidden = engine.state != .sleeping || !reducedMotion
         if engine.state == .sleeping, !reducedMotion, !engine.isPaused, time >= nextSleepZ {
             nextSleepZ = time + 1.5
-            sleepyZ(from: CGPoint(x: point.x + pet.size.width * 0.22 * headSide, y: point.y + pet.size.height * 0.8))
+            let headX: Double = Double(point.x) + Double(pet.size.width) * 0.22 * headSide
+            sleepyZ(from: CGPoint(x: headX, y: Double(point.y) + Double(pet.size.height) * 0.8))
         }
         if let toy = engine.toy {
             let plasma = engine.avatar == .toothless
@@ -287,8 +299,8 @@ extension PetScene {
         let fade = min(1, (engine.dizzyUntil - engine.elapsed) / 0.6)
         dizzyStars.alpha = fade
         // Circling the crown, above the eyes.
-        dizzyStars.position = CGPoint(x: headPoint.x, y: headPoint.y + pet.size.height * 0.14)
-        let radius = max(18, pet.size.width * 0.16)
+        dizzyStars.position = CGPoint(x: headPoint.x, y: headPoint.y + Double(pet.size.height) * 0.14)
+        let radius: Double = max(18, Double(pet.size.width) * 0.16)
         for (index, star) in dizzyStars.children.enumerated() {
             let angle = (reducedMotion ? 0 : time * 4.5) + Double(index) * .pi * 2 / 3
             star.position = CGPoint(x: cos(angle) * radius, y: sin(angle) * radius * 0.32)

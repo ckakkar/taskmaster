@@ -96,7 +96,7 @@ extension PetScene {
             node.fillColor = color
             node.name = "mote"
             node.strokeColor = .clear
-            let start = origin ?? CGPoint(x: petLocation.x, y: petLocation.y + pet.size.height * 0.7)
+            let start = origin ?? CGPoint(x: petLocation.x, y: Double(petLocation.y) + Double(pet.size.height) * 0.7)
             node.position = CGPoint(x: start.x + Double(index % 3 - 1) * (origin == nil ? 16 : 7), y: start.y)
             node.zPosition = 8
             node.setScale(0.3)
@@ -129,7 +129,8 @@ extension PetScene {
             puff.fillColor = NSColor(calibratedRed: 0.58, green: 0.52, blue: 0.46, alpha: 0.38)
             puff.strokeColor = .clear
             puff.zPosition = 2.8
-            puff.position = CGPoint(x: floor.x + side * (10 + Double(index) * 3), y: floor.y)
+            let offset: Double = side * (10 + Double(index) * 3)
+            puff.position = CGPoint(x: Double(floor.x) + offset, y: Double(floor.y))
             puff.setScale(0.5)
             addChild(puff)
             let reach = (22 + Double(index) * 7) * (0.6 + strength * 0.6)
